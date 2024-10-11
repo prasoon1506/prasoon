@@ -393,8 +393,6 @@ if check_password():
     # Display last modified time
     st.write(f"Data last updated: {time.ctime(last_modified)}")
     if file_path is not None:
-        st.markdown(f'<div class="uploaded-filename">Uploaded file: {file_path.name}</div>', unsafe_allow_html=True)
-        data = load_data(file_path)
         features = ['Month Tgt (Oct)', 'Monthly Achievement(Sep)', 'Total Sep 2023', 'Total Oct 2023',
                     'Monthly Achievement(Apr)', 'Monthly Achievement(May)', 'Monthly Achievement(June)',
                     'Monthly Achievement(July)', 'Monthly Achievement(Aug)']
