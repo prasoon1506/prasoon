@@ -18,6 +18,18 @@ import plotly.graph_objects as go
 import time
 # Set page config
 st.set_page_config(page_title="Sales Prediction Simulator", layout="wide", initial_sidebar_state="collapsed")
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_data():
+    # Replace this with the path to your data file
+    file_path = "C:/Users/Prasoon.bajpai/Downloads/Sales prediction data (2) (4).xlsx"
+    
+    # Get the last modification time of the file
+    last_modified = os.path.getmtime(file_path)
+    
+    # Read the data
+    data = pd.read_excel(file_path)
+    
+    return data, last_modified
 CORRECT_PASSWORD = "prasoonA1@"  # Replace with your desired password
 MAX_ATTEMPTS = 5
 LOCKOUT_DURATION = 3600  # 1 hour in seconds
@@ -371,6 +383,9 @@ if check_password():
     styler.format(numeric_format)
     return styler
  def main():
+    st.title("Sales Prediction Simulator")
+    data, last_modified = load_data()
+    st.write(f"Data last updated: {time.ctime(last_modified)}")
     st.markdown('<p class="big-font">Sales Prediction Simulator</p>', unsafe_allow_html=True)
     st.markdown('<p class="subheader">Upload your data and unlock the future of sales!</p>', unsafe_allow_html=True)
     uploaded_file = custom_file_uploader("Choose your sales data file (Excel format)", ["xlsx"])
