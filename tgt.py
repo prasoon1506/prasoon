@@ -386,7 +386,7 @@ if check_password():
     st.markdown('<p class="big-font">Sales Prediction Simulator</p>', unsafe_allow_html=True)
     st.markdown('<p class="subheader">Upload your data and unlock the future of sales!</p>', unsafe_allow_html=True)
     st.title("Sales Prediction Simulator")
-
+    file_path = "C:/Users/Prasoon.bajpai/Downloads/Sales prediction data (2) (4).xlsx"
     # Load the data
     data, last_modified = load_data(file_path)
 
