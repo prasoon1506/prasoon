@@ -385,13 +385,16 @@ if check_password():
  def main():
     st.markdown('<p class="big-font">Sales Prediction Simulator</p>', unsafe_allow_html=True)
     st.markdown('<p class="subheader">Upload your data and unlock the future of sales!</p>', unsafe_allow_html=True)
+    st.title("Sales Prediction Simulator")
 
+    # Load the data
+    data, last_modified = load_data(file_path)
+
+    # Display last modified time
+    st.write(f"Data last updated: {time.ctime(last_modified)}")
     if file_path is not None:
         st.markdown(f'<div class="uploaded-filename">Uploaded file: {file_path.name}</div>', unsafe_allow_html=True)
         data = load_data(file_path)
-        if data is not None:
-            # Display last modified time
-            st.write(f"Data last updated: {last_modified}")
         features = ['Month Tgt (Oct)', 'Monthly Achievement(Sep)', 'Total Sep 2023', 'Total Oct 2023',
                     'Monthly Achievement(Apr)', 'Monthly Achievement(May)', 'Monthly Achievement(June)',
                     'Monthly Achievement(July)', 'Monthly Achievement(Aug)']
