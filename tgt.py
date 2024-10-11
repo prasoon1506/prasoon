@@ -1,4 +1,4 @@
-!pip install requirements.txt
+
 import streamlit as st
 import io
 import matplotlib.pyplot as plt
