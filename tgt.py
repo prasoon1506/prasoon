@@ -386,9 +386,9 @@ if check_password():
     st.markdown('<p class="big-font">Sales Prediction Simulator</p>', unsafe_allow_html=True)
     st.markdown('<p class="subheader">Upload your data and unlock the future of sales!</p>', unsafe_allow_html=True)
 
-    if uploaded_file is not None:
-        st.markdown(f'<div class="uploaded-filename">Uploaded file: {uploaded_file.name}</div>', unsafe_allow_html=True)
-        data = load_data(uploaded_file)
+    if file_path is not None:
+        st.markdown(f'<div class="uploaded-filename">Uploaded file: {file_path.name}</div>', unsafe_allow_html=True)
+        data = load_data(file_path)
         if data is not None:
             # Display last modified time
             st.write(f"Data last updated: {last_modified}")
