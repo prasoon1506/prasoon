@@ -383,17 +383,15 @@ if check_password():
     styler.format(numeric_format)
     return styler
  def main():
-    st.title("Sales Prediction Simulator")
-    data, last_modified = load_data()
-    st.write(f"Data last updated: {time.ctime(last_modified)}")
     st.markdown('<p class="big-font">Sales Prediction Simulator</p>', unsafe_allow_html=True)
     st.markdown('<p class="subheader">Upload your data and unlock the future of sales!</p>', unsafe_allow_html=True)
-    uploaded_file = custom_file_uploader("Choose your sales data file (Excel format)", ["xlsx"])
 
     if uploaded_file is not None:
         st.markdown(f'<div class="uploaded-filename">Uploaded file: {uploaded_file.name}</div>', unsafe_allow_html=True)
         data = load_data(uploaded_file)
-
+        if data is not None:
+            # Display last modified time
+            st.write(f"Data last updated: {last_modified}")
         features = ['Month Tgt (Oct)', 'Monthly Achievement(Sep)', 'Total Sep 2023', 'Total Oct 2023',
                     'Monthly Achievement(Apr)', 'Monthly Achievement(May)', 'Monthly Achievement(June)',
                     'Monthly Achievement(July)', 'Monthly Achievement(Aug)']
