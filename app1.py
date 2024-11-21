@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 from scipy.stats import t
-
+from ebitda_analysis_module import add_ebitda_transfer_analysis_tab
 def calculate_effect_sizes(data_high, data_low):
     """
     Calculate various effect size metrics for small sample comparison
