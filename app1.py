@@ -311,9 +311,9 @@ def streamlit_data_merger():
                     specific_total_region_data = total_df[total_df['Region Name'] == selected_total_region]
                     # Prepare columns for display
                     trade_quantity_cols = [col for col in specific_total_region_data.columns 
-                                           if 'Trade Quantity' in col and 'Non-Trade' not in col]
+                                           if 'Trade Quantity' in col and 'Non-Trade Quantity' not in col]
                     trade_ebitda_cols = [col for col in specific_total_region_data.columns 
-                                         if 'Trade EBITDA' in col and 'Non-Trade' not in col]
+                                         if 'Trade EBITDA' in col and 'Non-Trade EBITDA' not in col]
                     non_trade_quantity_cols = [col for col in specific_total_region_data.columns 
                                                if 'Non-Trade Quantity' in col]
                     non_trade_ebitda_cols = [col for col in specific_total_region_data.columns 
