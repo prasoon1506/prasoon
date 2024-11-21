@@ -264,8 +264,8 @@ def streamlit_data_merger():
                     specific_material_data = region_df[region_df['Material Name'] == selected_material]
                     
                     # Prepare columns for display
-                    trade_quantity_cols = [col for col in specific_material_data.columns if 'Trade Quantity' in col]
-                    trade_ebitda_cols = [col for col in specific_material_data.columns if 'Trade EBITDA' in col]
+                    trade_quantity_cols = [col for col in specific_material_data.columns if 'Trade Quantity' in col and 'Non-Trade Quantity' not in col]
+                    trade_ebitda_cols = [col for col in specific_material_data.columns if 'Trade EBITDA' in col and 'Non-Trade EBITDA' not in col]
                     non_trade_quantity_cols = [col for col in specific_material_data.columns if 'Non-Trade Quantity' in col]
                     non_trade_ebitda_cols = [col for col in specific_material_data.columns if 'Non-Trade EBITDA' in col]
                     
