@@ -77,7 +77,7 @@ def process_and_merge(df, file_type):
 def streamlit_data_merger():
     # Set page configuration
     st.set_page_config(
-        page_title="Data Merger App", 
+        page_title="Data Merger & Analysis App", 
         page_icon=":bar_chart:", 
         layout="wide"
     )
@@ -109,106 +109,246 @@ def streamlit_data_merger():
     </style>
     """, unsafe_allow_html=True)
 
-    # Title
-    st.markdown('<h1 class="main-title">📊 Data Merger Application</h1>', unsafe_allow_html=True)
+    # Create tabs
+    tab1, tab2 = st.tabs(["Data Merger", "Data Analysis"])
 
-    # File upload section
-    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
-    
-    # Initialize session state for files and sheets
-    if 'files' not in st.session_state:
-        st.session_state.files = [None, None, None]
-    if 'selected_sheets' not in st.session_state:
-        st.session_state.selected_sheets = [None, None, None]
+    with tab1:
+        # Title
+        st.markdown('<h1 class="main-title">📊 Data Merger</h1>', unsafe_allow_html=True)
 
-    # File upload and sheet selection
-    file_types = ["Oct-Sep", "Sep-Aug", "Aug-Jul"]
-    
-    for i in range(3):
-        st.subheader(f"Upload {file_types[i]} File")
-        uploaded_file = st.file_uploader(
-            f"Choose Excel file for {file_types[i]}", 
-            type=['xlsx', 'xls'], 
-            key=f"file_uploader_{i}"
-        )
+        # File upload section
+        st.markdown('<div class="upload-section">', unsafe_allow_html=True)
         
-        if uploaded_file is not None:
-            st.session_state.files[i] = uploaded_file
-            
-            # Read all sheets
-            xls = pd.ExcelFile(uploaded_file)
-            sheet_names = xls.sheet_names
-            
-            # Sheet selection
-            selected_sheet = st.selectbox(
-                f"Select sheet for {file_types[i]}", 
-                sheet_names, 
-                key=f"sheet_selector_{i}"
+        # Initialize session state for files and sheets
+        if 'files' not in st.session_state:
+            st.session_state.files = [None, None, None]
+        if 'selected_sheets' not in st.session_state:
+            st.session_state.selected_sheets = [None, None, None]
+
+        # File upload and sheet selection
+        file_types = ["Oct-Sep", "Sep-Aug", "Aug-Jul"]
+        
+        for i in range(3):
+            st.subheader(f"Upload {file_types[i]} File")
+            uploaded_file = st.file_uploader(
+                f"Choose Excel file for {file_types[i]}", 
+                type=['xlsx', 'xls'], 
+                key=f"file_uploader_{i}"
             )
-            st.session_state.selected_sheets[i] = selected_sheet
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # Merge button
-    if st.button("Merge Data", key="merge_button"):
-        # Validate file uploads and sheet selections
-        if all(st.session_state.files) and all(st.session_state.selected_sheets):
-            processed_dfs = []
-            processed_total_dfs = []
             
-            try:
-                for i in range(3):
-                    # Read specific sheet
-                    df = pd.read_excel(
-                        st.session_state.files[i], 
-                        sheet_name=st.session_state.selected_sheets[i]
+            if uploaded_file is not None:
+                st.session_state.files[i] = uploaded_file
+                
+                # Read all sheets
+                xls = pd.ExcelFile(uploaded_file)
+                sheet_names = xls.sheet_names
+                
+                # Sheet selection
+                selected_sheet = st.selectbox(
+                    f"Select sheet for {file_types[i]}", 
+                    sheet_names, 
+                    key=f"sheet_selector_{i}"
+                )
+                st.session_state.selected_sheets[i] = selected_sheet
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Merge button
+        if st.button("Merge Data", key="merge_button"):
+            # Validate file uploads and sheet selections
+            if all(st.session_state.files) and all(st.session_state.selected_sheets):
+                processed_dfs = []
+                processed_total_dfs = []
+                
+                try:
+                    for i in range(3):
+                        # Read specific sheet
+                        df = pd.read_excel(
+                            st.session_state.files[i], 
+                            sheet_name=st.session_state.selected_sheets[i]
+                        )
+                        
+                        # Preprocess and process
+                        df = preprocess_data(df)
+                        df_no_total, df_total = process_and_merge(df, file_types[i])
+                        
+                        processed_dfs.append(df_no_total)
+                        processed_total_dfs.append(df_total)
+
+                    # Merge non-total DataFrames
+                    final_df = processed_dfs[0]
+                    for df in processed_dfs[1:]:
+                        df = df[["Region Name", "Material Name"] + [col for col in df.columns if col not in final_df.columns]]
+                        final_df = pd.merge(final_df, df, on=["Region Name", "Material Name"], how="left")
+                    
+                    # Merge total DataFrames
+                    final_total_df = processed_total_dfs[0]
+                    for df in processed_total_dfs[1:]:
+                        df = df[["Region Name"] + [col for col in df.columns if col not in final_total_df.columns]]
+                        final_total_df = pd.merge(final_total_df, df, on="Region Name", how="left")
+                    
+                    # Create Excel file in memory
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        final_df.to_excel(writer, sheet_name='Non-Total', index=False)
+                        final_total_df.to_excel(writer, sheet_name='Total', index=False)
+                    output.seek(0)
+                    
+                    # Store merged dataframes in session state
+                    st.session_state.final_non_total_df = final_df
+                    st.session_state.final_total_df = final_total_df
+                    
+                    # Download button
+                    st.download_button(
+                        label="Download Merged Excel File",
+                        data=output,
+                        file_name='final_merged_data.xlsx',
+                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                     )
                     
-                    # Preprocess and process
-                    df = preprocess_data(df)
-                    df_no_total, df_total = process_and_merge(df, file_types[i])
+                    # Display DataFrames
+                    st.success("Data merged successfully!")
+                    st.subheader("Non-Total DataFrame Preview")
+                    st.dataframe(final_df.head())
+                    st.subheader("Total DataFrame Preview")
+                    st.dataframe(final_total_df.head())
                     
-                    processed_dfs.append(df_no_total)
-                    processed_total_dfs.append(df_total)
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+            else:
+                st.warning("Please upload all three files and select sheets!")
 
-                # Merge non-total DataFrames
-                final_df = processed_dfs[0]
-                for df in processed_dfs[1:]:
-                    df = df[["Region Name", "Material Name"] + [col for col in df.columns if col not in final_df.columns]]
-                    final_df = pd.merge(final_df, df, on=["Region Name", "Material Name"], how="left")
-                
-                # Merge total DataFrames
-                final_total_df = processed_total_dfs[0]
-                for df in processed_total_dfs[1:]:
-                    df = df[["Region Name"] + [col for col in df.columns if col not in final_total_df.columns]]
-                    final_total_df = pd.merge(final_total_df, df, on="Region Name", how="left")
-                
-                # Create Excel file in memory
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    final_df.to_excel(writer, sheet_name='Non-Total', index=False)
-                    final_total_df.to_excel(writer, sheet_name='Total', index=False)
-                output.seek(0)
-                
-                # Download button
-                st.download_button(
-                    label="Download Merged Excel File",
-                    data=output,
-                    file_name='final_merged_data.xlsx',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    with tab2:
+        st.markdown('<h1 class="main-title">📈 Data Analysis</h1>', unsafe_allow_html=True)
+        
+        # File upload for analysis
+        uploaded_analysis_file = st.file_uploader(
+            "Upload Merged Excel File for Analysis", 
+            type=['xlsx', 'xls']
+        )
+
+        # If a file is uploaded or merged dataframes exist in session state
+        if uploaded_analysis_file or hasattr(st.session_state, 'final_non_total_df'):
+            try:
+                # Read the uploaded file or use session state dataframes
+                if uploaded_analysis_file:
+                    non_total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Non-Total')
+                    total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Total')
+                else:
+                    non_total_df = st.session_state.final_non_total_df
+                    total_df = st.session_state.final_total_df
+
+                # Categorize analysis type
+                analysis_type = st.selectbox(
+                    "Select Analysis Type", 
+                    ["Material-wise Analysis", "Total Analysis"]
                 )
-                
-                # Display DataFrames
-                st.success("Data merged successfully!")
-                st.subheader("Non-Total DataFrame Preview")
-                st.dataframe(final_df.head())
-                st.subheader("Total DataFrame Preview")
-                st.dataframe(final_total_df.head())
-                
+
+                if analysis_type == "Material-wise Analysis":
+                    # Get unique regions and materials
+                    unique_regions = sorted(non_total_df['Region Name'].unique())
+                    
+                    # Region selection
+                    selected_region = st.selectbox("Select Region", unique_regions)
+                    
+                    # Filter DataFrame by region
+                    region_df = non_total_df[non_total_df['Region Name'] == selected_region]
+                    
+                    # Get unique materials for that region
+                    unique_materials = sorted(region_df['Material Name'].unique())
+                    
+                    # Material selection
+                    selected_material = st.selectbox("Select Material", unique_materials)
+                    
+                    # Filter for specific region and material
+                    specific_material_data = region_df[region_df['Material Name'] == selected_material]
+                    
+                    # Prepare columns for display
+                    trade_quantity_cols = [col for col in specific_material_data.columns if 'Trade Quantity' in col]
+                    trade_ebitda_cols = [col for col in specific_material_data.columns if 'Trade EBITDA' in col]
+                    non_trade_quantity_cols = [col for col in specific_material_data.columns if 'Non-Trade Quantity' in col]
+                    non_trade_ebitda_cols = [col for col in specific_material_data.columns if 'Non-Trade EBITDA' in col]
+                    
+                    # Display results
+                    st.subheader(f"Analysis for {selected_material} in {selected_region}")
+                    
+                    # Trade Quantity
+                    st.markdown("**Trade Quantity**")
+                    trade_quantity_data = specific_material_data[trade_quantity_cols].T
+                    trade_quantity_data.columns = ['Value']
+                    trade_quantity_data.index.name = 'Month'
+                    st.dataframe(trade_quantity_data)
+                    
+                    # Trade EBITDA
+                    st.markdown("**Trade EBITDA**")
+                    trade_ebitda_data = specific_material_data[trade_ebitda_cols].T
+                    trade_ebitda_data.columns = ['Value']
+                    trade_ebitda_data.index.name = 'Month'
+                    st.dataframe(trade_ebitda_data)
+                    
+                    # Non-Trade Quantity
+                    st.markdown("**Non-Trade Quantity**")
+                    non_trade_quantity_data = specific_material_data[non_trade_quantity_cols].T
+                    non_trade_quantity_data.columns = ['Value']
+                    non_trade_quantity_data.index.name = 'Month'
+                    st.dataframe(non_trade_quantity_data)
+                    
+                    # Non-Trade EBITDA
+                    st.markdown("**Non-Trade EBITDA**")
+                    non_trade_ebitda_data = specific_material_data[non_trade_ebitda_cols].T
+                    non_trade_ebitda_data.columns = ['Value']
+                    non_trade_ebitda_data.index.name = 'Month'
+                    st.dataframe(non_trade_ebitda_data)
+
+                else:  # Total Analysis
+                    # Get unique regions for total
+                    unique_total_regions = sorted(total_df['Region Name'].unique())
+                    
+                    # Region selection for total
+                    selected_total_region = st.selectbox("Select Region", unique_total_regions)
+                    
+                    # Filter DataFrame by region
+                    specific_total_region_data = total_df[total_df['Region Name'] == selected_total_region]
+                    trade_quantity_cols = [col for col in specific_total_region_data.columns if 'Trade Quantity' in col]
+                    trade_ebitda_cols = [col for col in specific_total_region_data.columns if 'Trade EBITDA' in col]
+                    non_trade_quantity_cols = [col for col in specific_total_region_data.columns if 'Non-Trade Quantity' in col]
+                    non_trade_ebitda_cols = [col for col in specific_total_region_data.columns if 'Non-Trade EBITDA' in col]
+                    
+                    # Display results
+                    st.subheader(f"Total Analysis for {selected_total_region}")
+                    
+                    # Trade Quantity
+                    st.markdown("**Total Trade Quantity**")
+                    trade_quantity_data = specific_total_region_data[trade_quantity_cols].T
+                    trade_quantity_data.columns = ['Value']
+                    trade_quantity_data.index.name = 'Month'
+                    st.dataframe(trade_quantity_data)
+                    
+                    # Trade EBITDA
+                    st.markdown("**Total Trade EBITDA**")
+                    trade_ebitda_data = specific_total_region_data[trade_ebitda_cols].T
+                    trade_ebitda_data.columns = ['Value']
+                    trade_ebitda_data.index.name = 'Month'
+                    st.dataframe(trade_ebitda_data)
+                    
+                    # Non-Trade Quantity
+                    st.markdown("**Total Non-Trade Quantity**")
+                    non_trade_quantity_data = specific_total_region_data[non_trade_quantity_cols].T
+                    non_trade_quantity_data.columns = ['Value']
+                    non_trade_quantity_data.index.name = 'Month'
+                    st.dataframe(non_trade_quantity_data)
+                    
+                    # Non-Trade EBITDA
+                    st.markdown("**Total Non-Trade EBITDA**")
+                    non_trade_ebitda_data = specific_total_region_data[non_trade_ebitda_cols].T
+                    non_trade_ebitda_data.columns = ['Value']
+                    non_trade_ebitda_data.index.name = 'Month'
+                    st.dataframe(non_trade_ebitda_data)
+
             except Exception as e:
-                st.error(f"An error occurred: {e}")
+                st.error(f"An error occurred during analysis: {e}")
         else:
-            st.warning("Please upload all three files and select sheets!")
+            st.info("Please upload a merged Excel file for analysis.")
 
 # Run the Streamlit app
 if __name__ == "__main__":
