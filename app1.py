@@ -344,7 +344,7 @@ def streamlit_data_merger():
     """, unsafe_allow_html=True)
 
     # Create tabs
-    tab1, tab2 = st.tabs(["Data Merger", "Data Analysis"])
+    tab1, tab2 = st.tabs(["Data Merger", "Data Analysis","EBITDA Transfer Analysis"])
     with st.tabs(["Data Merger", "Data Analysis", "EBITDA Transfer Analysis"])[2]:
         run_ebitda_analysis_tab()
     with tab1:
