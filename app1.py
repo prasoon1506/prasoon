@@ -182,28 +182,43 @@ def ebitda_transfer_analysis_section(non_total_df):
     
     # Ensure enough columns for comparison
     if len(ebitda_cols) >= 2:
-        # Take first two columns for comparison (typically most recent months)
-        data_high = region_df[ebitda_cols[0]].values
-        data_low = region_df[ebitda_cols[1]].values
-        
-        # Remove NaN values if present
-        valid_indices = ~(np.isnan(data_high) | np.isnan(data_low))
-        data_high = data_high[valid_indices]
-        data_low = data_low[valid_indices]
-        
-        # Check if we have valid data after filtering
-        if len(data_high) > 0 and len(data_low) > 0:
-            # Perform comprehensive analysis
-            results = analyze_ebitda_comprehensive(data_high, data_low)
+        try:
+            # Convert to numeric, coercing errors to NaN
+            data_high = pd.to_numeric(region_df[ebitda_cols[0]], errors='coerce')
+            data_low = pd.to_numeric(region_df[ebitda_cols[1]], errors='coerce')
             
-            # Generate and display report
-            report = generate_comprehensive_report(results, analysis_type)
-            st.markdown(report)
-        else:
-            st.warning("Insufficient non-NaN data for analysis.")
+            # Remove NaN values
+            valid_data = pd.concat([data_high, data_low], axis=1).dropna()
+            
+            # Check if we have valid data
+            if len(valid_data) > 0:
+                data_high = valid_data[ebitda_cols[0]].values
+                data_low = valid_data[ebitda_cols[1]].values
+                
+                # Perform comprehensive analysis
+                results = analyze_ebitda_comprehensive(data_high, data_low)
+                
+                # Generate and display report
+                report = generate_comprehensive_report(results, analysis_type)
+                st.markdown(report)
+                
+                # Additional data preview
+                st.subheader("Data Used in Analysis")
+                analysis_data = pd.DataFrame({
+                    ebitda_cols[0]: data_high,
+                    ebitda_cols[1]: data_low
+                })
+                st.dataframe(analysis_data)
+            else:
+                st.warning("No valid numerical data found for analysis.")
+        
+        except Exception as e:
+            st.error(f"An error occurred during analysis: {e}")
+            # Print more detailed error information
+            import traceback
+            st.error(traceback.format_exc())
     else:
         st.warning("Insufficient data for comprehensive analysis. Need at least two months of EBITDA data.")
-# To be added to the existing Streamlit app's tab2 (Data Analysis) section
 def add_ebitda_transfer_analysis_tab(non_total_df, total_df):
     """
     Add EBITDA Transfer Analysis as a new tab or section
