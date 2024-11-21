@@ -1,6 +1,240 @@
 import streamlit as st
 import pandas as pd
 import io
+import streamlit as st
+import pandas as pd
+import numpy as np
+from scipy import stats
+from scipy.stats import t
+
+def calculate_effect_sizes(data_high, data_low):
+    """
+    Calculate various effect size metrics for small sample comparison
+    """
+    # Convert to numpy arrays
+    high_ebitda = np.array(data_high)
+    low_ebitda = np.array(data_low)
+    differences = high_ebitda - low_ebitda
+    n = len(data_high)
+    
+    # 1. Cohen's d
+    pooled_std = np.sqrt((np.var(high_ebitda) + np.var(low_ebitda)) / 2)
+    cohens_d = (np.mean(high_ebitda) - np.mean(low_ebitda)) / pooled_std
+    
+    # 2. Hedges' g (bias-corrected for small samples)
+    correction_factor = 1 - (3 / (4 * (2 * n - 2) - 1))
+    hedges_g = cohens_d * correction_factor
+    
+    # 3. Probability of Superiority (Common Language Effect Size)
+    ps = np.mean([1 if h > l else 0 for h in high_ebitda for l in low_ebitda])
+    
+    # 4. Non-overlap percentage
+    nonoverlap = (stats.norm.cdf(abs(cohens_d)/np.sqrt(2)) * 100)
+    
+    # 5. Paired samples t-test effect size
+    t_stat, p_value = stats.ttest_rel(high_ebitda, low_ebitda)
+    dof = n - 1
+    effect_size_r = np.sqrt(t_stat**2 / (t_stat**2 + dof))
+    
+    return {
+        'cohens_d': cohens_d,
+        'hedges_g': hedges_g,
+        'probability_superiority': ps,
+        'nonoverlap_percentage': nonoverlap,
+        'effect_size_r': effect_size_r,
+        'p_value': p_value
+    }
+
+def analyze_ebitda_comprehensive(data_high, data_low, n_iterations=10000):
+    """
+    Comprehensive EBITDA analysis including effect sizes and robust metrics
+    """
+    effect_sizes = calculate_effect_sizes(data_high, data_low)
+    
+    # Calculate Cliff's Delta (non-parametric effect size)
+    cliffs_delta = 2 * (effect_sizes['probability_superiority'] - 0.5)
+    
+    # Calculate VDA (Vargha and Delaney's A)
+    vda = effect_sizes['probability_superiority']
+    
+    # Calculate confidence intervals for difference using t-distribution
+    diff_mean = np.mean(np.array(data_high) - np.array(data_low))
+    diff_std = np.std(np.array(data_high) - np.array(data_low), ddof=1)
+    n = len(data_high)
+    t_val = t.ppf(0.975, df=n-1)
+    ci_margin = t_val * (diff_std / np.sqrt(n))
+    
+    return {
+        **effect_sizes,
+        'cliffs_delta': cliffs_delta,
+        'vda': vda,
+        'mean_difference': diff_mean,
+        'ci_lower': diff_mean - ci_margin,
+        'ci_upper': diff_mean + ci_margin
+    }
+
+def interpret_effect_size(d):
+    """Interpret Cohen's d effect size"""
+    if abs(d) < 0.2:
+        return "negligible"
+    elif abs(d) < 0.5:
+        return "small"
+    elif abs(d) < 0.8:
+        return "medium"
+    else:
+        return "large"
+
+def interpret_vda(vda):
+    """Interpret Vargha and Delaney's A"""
+    if vda < 0.56:
+        return "negligible"
+    elif vda < 0.64:
+        return "small"
+    elif vda < 0.71:
+        return "medium"
+    else:
+        return "large"
+
+def generate_comprehensive_report(results, region, material):
+    """Generate a comprehensive report based on analysis results"""
+    report = f"# Comprehensive EBITDA Analysis Report\n\n"
+    report += f"**Region:** {region}\n"
+    report += f"**Material:** {material}\n\n"
+    
+    report += "## Effect Size Analysis\n"
+    report += f"- **Cohen's d:** {results['cohens_d']:.3f} ({interpret_effect_size(results['cohens_d'])} effect)\n"
+    report += f"- **Hedges' g:** {results['hedges_g']:.3f} (bias-corrected for small sample)\n"
+    report += f"- **Probability of Superiority:** {results['probability_superiority']:.1%}\n"
+    report += f"- **Non-overlap Percentage:** {results['nonoverlap_percentage']:.1f}%\n"
+    report += f"- **Effect Size r:** {results['effect_size_r']:.3f}\n"
+    report += f"- **VDA (Vargha-Delaney A):** {results['vda']:.3f} ({interpret_vda(results['vda'])} effect)\n\n"
+    
+    report += "## Statistical Significance\n"
+    report += f"- **P-value:** {results['p_value']:.4f}\n"
+    report += f"- **Mean Difference:** {results['mean_difference']:.2f}\n"
+    report += f"- **95% Confidence Interval:** ({results['ci_lower']:.2f}, {results['ci_upper']:.2f})\n\n"
+    
+    # Recommendation framework
+    confidence_level = "High" if results['p_value'] < 0.05 else "Low"
+    effect_magnitude = interpret_effect_size(results['cohens_d'])
+    practical_significance = results['nonoverlap_percentage'] > 55
+    
+    report += "## Recommendation\n"
+    report += f"- **Statistical Confidence:** {confidence_level}\n"
+    report += f"- **Effect Size:** {effect_magnitude}\n"
+    report += f"- **Practical Significance:** {'Yes' if practical_significance else 'No'}\n\n"
+    
+    # Final recommendation
+    if results['cohens_d'] > 0.5 and results['vda'] > 0.64:
+        report += "### Final Recommendation\n"
+        report += "**STRONG SUPPORT for transferring sales**\n\n"
+        report += "The analysis provides robust evidence supporting the transfer of sales. The effect size is substantial, and the statistical confidence is high."
+    elif results['cohens_d'] > 0.2 and results['vda'] > 0.56:
+        report += "### Final Recommendation\n"
+        report += "**MODERATE SUPPORT for transferring sales**\n\n"
+        report += "The analysis suggests some potential in transferring sales, but the evidence is not as strong as in a high-support scenario."
+    else:
+        report += "### Final Recommendation\n"
+        report += "**LIMITED SUPPORT for transferring sales**\n\n"
+        report += "The current analysis does not provide strong evidence to support transferring sales. Further investigation may be needed."
+    
+    return report
+
+def run_ebitda_analysis_tab():
+    st.markdown('<h1 class="main-title">📊 EBITDA Transfer Analysis</h1>', unsafe_allow_html=True)
+    
+    # File upload for analysis
+    uploaded_analysis_file = st.file_uploader(
+        "Upload Merged Excel File for EBITDA Transfer Analysis", 
+        type=['xlsx', 'xls']
+    )
+
+    # If a file is uploaded or merged dataframes exist in session state
+    if uploaded_analysis_file or hasattr(st.session_state, 'final_non_total_df'):
+        try:
+            # Read the uploaded file or use session state dataframes
+            if uploaded_analysis_file:
+                non_total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Non-Total')
+            else:
+                non_total_df = st.session_state.final_non_total_df
+
+            # Get unique regions and materials
+            unique_regions = sorted(non_total_df['Region Name'].unique())
+            
+            # Region selection
+            selected_region = st.selectbox("Select Region", unique_regions)
+            
+            # Filter DataFrame by region
+            region_df = non_total_df[non_total_df['Region Name'] == selected_region]
+            
+            # Get unique materials for that region
+            unique_materials = sorted(region_df['Material Name'].unique())
+            
+            # Material selection
+            selected_material = st.selectbox("Select Material", unique_materials)
+            
+            # Filter for specific region and material
+            specific_material_data = region_df[region_df['Material Name'] == selected_material]
+            
+            # Prepare columns for EBITDA analysis
+            trade_ebitda_cols = [col for col in specific_material_data.columns if 'Trade EBITDA' in col and 'Non-Trade EBITDA' not in col]
+            non_trade_ebitda_cols = [col for col in specific_material_data.columns if 'Non-Trade EBITDA' in col]
+            
+            # Perform analysis for Trade EBITDA
+            if len(trade_ebitda_cols) >= 2:
+                # Extract trade EBITDA for the last two months
+                trade_ebitda_values = specific_material_data[trade_ebitda_cols[-2:]].values[0]
+                trade_analysis = analyze_ebitda_comprehensive(
+                    trade_ebitda_values[:1], 
+                    trade_ebitda_values[1:2]
+                )
+                
+                # Generate trade EBITDA report
+                st.subheader("Trade EBITDA Transfer Analysis")
+                trade_report = generate_comprehensive_report(trade_analysis, selected_region, selected_material)
+                st.markdown(trade_report)
+            
+            # Perform analysis for Non-Trade EBITDA
+            if len(non_trade_ebitda_cols) >= 2:
+                # Extract non-trade EBITDA for the last two months
+                non_trade_ebitda_values = specific_material_data[non_trade_ebitda_cols[-2:]].values[0]
+                non_trade_analysis = analyze_ebitda_comprehensive(
+                    non_trade_ebitda_values[:1], 
+                    non_trade_ebitda_values[1:2]
+                )
+                
+                # Generate non-trade EBITDA report
+                st.subheader("Non-Trade EBITDA Transfer Analysis")
+                non_trade_report = generate_comprehensive_report(non_trade_analysis, selected_region, selected_material)
+                st.markdown(non_trade_report)
+            
+            # Comparison if both trade and non-trade analyses are possible
+            if len(trade_ebitda_cols) >= 2 and len(non_trade_ebitda_cols) >= 2:
+                st.subheader("Comparative Insights")
+                
+                # Side-by-side comparison of effect sizes
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Trade EBITDA Cohen's d", f"{trade_analysis['cohens_d']:.3f}")
+                    st.metric("Trade EBITDA VDA", f"{trade_analysis['vda']:.3f}")
+                
+                with col2:
+                    st.metric("Non-Trade EBITDA Cohen's d", f"{non_trade_analysis['cohens_d']:.3f}")
+                    st.metric("Non-Trade EBITDA VDA", f"{non_trade_analysis['vda']:.3f}")
+                
+                # Overall recommendation
+                if trade_analysis['cohens_d'] > 0.5 and non_trade_analysis['cohens_d'] > 0.5:
+                    st.success("**High Potential for Sales Transfer:** Both Trade and Non-Trade EBITDA show strong indicators for sales transfer.")
+                elif trade_analysis['cohens_d'] > 0.2 and non_trade_analysis['cohens_d'] > 0.2:
+                    st.warning("**Moderate Potential for Sales Transfer:** Trade and Non-Trade EBITDA show moderate indicators.")
+                else:
+                    st.error("**Limited Potential for Sales Transfer:** Neither Trade nor Non-Trade EBITDA show strong transfer potential.")
+
+        except Exception as e:
+            st.error(f"An error occurred during EBITDA transfer analysis: {e}")
+    else:
+        st.info("Please upload a merged Excel file for EBITDA transfer analysis.")
 
 def preprocess_data(df):
     df = df.iloc[3:]
@@ -111,7 +345,8 @@ def streamlit_data_merger():
 
     # Create tabs
     tab1, tab2 = st.tabs(["Data Merger", "Data Analysis"])
-
+    with st.tabs(["Data Merger", "Data Analysis", "EBITDA Transfer Analysis"])[2]:
+        run_ebitda_analysis_tab()
     with tab1:
         # Title
         st.markdown('<h1 class="main-title">📊 Data Merger</h1>', unsafe_allow_html=True)
