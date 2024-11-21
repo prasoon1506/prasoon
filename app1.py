@@ -143,15 +143,24 @@ def generate_comprehensive_report(results, analysis_type):
     report += f"{recommendation}\n"
     
     return report
-
 def ebitda_transfer_analysis_section(non_total_df):
     """
     Add EBITDA Transfer Analysis section to Streamlit app
     """
     st.markdown("## 📊 EBITDA Transfer Analysis")
     
+    # Check if DataFrame is empty or None
+    if non_total_df is None or non_total_df.empty:
+        st.warning("No data available for EBITDA Transfer Analysis. Please upload and merge files first.")
+        return
+    
     # Get unique regions
     unique_regions = sorted(non_total_df['Region Name'].unique())
+    
+    # Ensure there are regions to analyze
+    if not unique_regions:
+        st.warning("No regions found in the dataset.")
+        return
     
     # Region selection for analysis
     selected_region = st.selectbox("Select Region for EBITDA Transfer Analysis", unique_regions)
@@ -171,21 +180,29 @@ def ebitda_transfer_analysis_section(non_total_df):
     # Filter for specific region
     region_df = non_total_df[non_total_df['Region Name'] == selected_region]
     
-    # Prepare data for analysis
+    # Ensure enough columns for comparison
     if len(ebitda_cols) >= 2:
         # Take first two columns for comparison (typically most recent months)
         data_high = region_df[ebitda_cols[0]].values
         data_low = region_df[ebitda_cols[1]].values
         
-        # Perform comprehensive analysis
-        results = analyze_ebitda_comprehensive(data_high, data_low)
+        # Remove NaN values if present
+        valid_indices = ~(np.isnan(data_high) | np.isnan(data_low))
+        data_high = data_high[valid_indices]
+        data_low = data_low[valid_indices]
         
-        # Generate and display report
-        report = generate_comprehensive_report(results, analysis_type)
-        st.markdown(report)
+        # Check if we have valid data after filtering
+        if len(data_high) > 0 and len(data_low) > 0:
+            # Perform comprehensive analysis
+            results = analyze_ebitda_comprehensive(data_high, data_low)
+            
+            # Generate and display report
+            report = generate_comprehensive_report(results, analysis_type)
+            st.markdown(report)
+        else:
+            st.warning("Insufficient non-NaN data for analysis.")
     else:
-        st.warning("Insufficient data for comprehensive analysis. Need at least two months of data.")
-
+        st.warning("Insufficient data for comprehensive analysis. Need at least two months of EBITDA data.")
 # To be added to the existing Streamlit app's tab2 (Data Analysis) section
 def add_ebitda_transfer_analysis_tab(non_total_df, total_df):
     """
@@ -407,7 +424,29 @@ def streamlit_data_merger():
                     st.error(f"An error occurred: {e}")
             else:
                 st.warning("Please upload all three files and select sheets!")
-
+    with tab3:
+        st.markdown('<h1 class="main-title">💹 EBITDA Transfer Analysis</h1>', unsafe_allow_html=True)
+        
+        # Check if merged data exists in session state
+        if hasattr(st.session_state, 'final_non_total_df'):
+            # Call EBITDA Transfer Analysis section
+            ebitda_transfer_analysis_section(st.session_state.final_non_total_df)
+        else:
+            # Option to upload a file
+            uploaded_analysis_file = st.file_uploader(
+                "Upload Merged Excel File for EBITDA Transfer Analysis", 
+                type=['xlsx', 'xls']
+            )
+            
+            if uploaded_analysis_file:
+                try:
+                    non_total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Non-Total')
+                    # Call EBITDA Transfer Analysis section
+                    ebitda_transfer_analysis_section(non_total_df)
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+            else:
+                st.info("Please upload a merged Excel file or complete the data merger first.")
     with tab2:
         st.markdown('<h1 class="main-title">📈 Data Analysis</h1>', unsafe_allow_html=True)
         
