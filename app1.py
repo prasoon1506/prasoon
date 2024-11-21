@@ -143,82 +143,134 @@ def generate_comprehensive_report(results, analysis_type):
     report += f"{recommendation}\n"
     
     return report
-def ebitda_transfer_analysis_section(non_total_df):
+def ebitda_transfer_analysis_section(total_df, non_total_df):
     """
-    Add EBITDA Transfer Analysis section to Streamlit app
+    Comprehensive EBITDA Transfer Analysis section
     """
     st.markdown("## 📊 EBITDA Transfer Analysis")
     
-    # Check if DataFrame is empty or None
-    if non_total_df is None or non_total_df.empty:
-        st.warning("No data available for EBITDA Transfer Analysis. Please upload and merge files first.")
-        return
+    # First level selection: Total or Non-Total DataFrame
+    df_selection = st.selectbox("Select Analysis Level", 
+                                ["Total Level Analysis", "Material Level Analysis"])
     
-    # Get unique regions
-    unique_regions = sorted(non_total_df['Region Name'].unique())
-    
-    # Ensure there are regions to analyze
-    if not unique_regions:
-        st.warning("No regions found in the dataset.")
-        return
-    
-    # Region selection for analysis
-    selected_region = st.selectbox("Select Region for EBITDA Transfer Analysis", unique_regions)
-    
-    # Select analysis type
-    analysis_type = st.selectbox("Select EBITDA Analysis Type", 
-                                 ["Trade EBITDA", "Non-Trade EBITDA", "Total EBITDA"])
-    
-    # Prepare column names based on analysis type
-    if analysis_type == "Trade EBITDA":
-        ebitda_cols = [col for col in non_total_df.columns if 'Trade EBITDA' in col and 'Non-Trade EBITDA' not in col]
-    elif analysis_type == "Non-Trade EBITDA":
-        ebitda_cols = [col for col in non_total_df.columns if 'Non-Trade EBITDA' in col]
-    else:
-        ebitda_cols = [col for col in non_total_df.columns if 'Total EBITDA' in col]
-    
-    # Filter for specific region
-    region_df = non_total_df[non_total_df['Region Name'] == selected_region]
-    
-    # Ensure enough columns for comparison
-    if len(ebitda_cols) >= 2:
-        try:
-            # Convert to numeric, coercing errors to NaN
-            data_high = pd.to_numeric(region_df[ebitda_cols[0]], errors='coerce')
-            data_low = pd.to_numeric(region_df[ebitda_cols[1]], errors='coerce')
+    if df_selection == "Total Level Analysis":
+        # Validate Total DataFrame
+        if total_df is None or total_df.empty:
+            st.warning("No Total data available for analysis.")
+            return
+        
+        # Get unique regions for total
+        unique_regions = sorted(total_df['Region Name'].unique())
+        
+        # Region selection
+        selected_region = st.selectbox("Select Region", unique_regions)
+        
+        # Filter for specific region
+        region_df = total_df[total_df['Region Name'] == selected_region]
+        
+        # Prepare Trade and Non-Trade EBITDA columns
+        trade_ebitda_cols = [col for col in region_df.columns if 'Trade EBITDA' in col]
+        non_trade_ebitda_cols = [col for col in region_df.columns if 'Non-Trade EBITDA' in col]
+        
+        # Ensure we have enough columns
+        if len(trade_ebitda_cols) >= 4 and len(non_trade_ebitda_cols) >= 4:
+            # Convert and prepare data
+            trade_data = pd.to_numeric(region_df[trade_ebitda_cols], errors='coerce')
+            non_trade_data = pd.to_numeric(region_df[non_trade_ebitda_cols], errors='coerce')
             
-            # Remove NaN values
-            valid_data = pd.concat([data_high, data_low], axis=1).dropna()
+            # Transpose to get analysis-friendly format
+            trade_data_values = trade_data.values.flatten()
+            non_trade_data_values = non_trade_data.values.flatten()
             
-            # Check if we have valid data
-            if len(valid_data) > 0:
-                data_high = valid_data[ebitda_cols[0]].values
-                data_low = valid_data[ebitda_cols[1]].values
+            # Remove NaNs
+            valid_indices = ~(np.isnan(trade_data_values) | np.isnan(non_trade_data_values))
+            trade_data_clean = trade_data_values[valid_indices]
+            non_trade_data_clean = non_trade_data_values[valid_indices]
+            
+            # Perform analysis if we have valid data
+            if len(trade_data_clean) > 0 and len(non_trade_data_clean) > 0:
+                # Comprehensive analysis of transfer potential
+                results = analyze_ebitda_comprehensive(trade_data_clean, non_trade_data_clean)
                 
-                # Perform comprehensive analysis
-                results = analyze_ebitda_comprehensive(data_high, data_low)
-                
-                # Generate and display report
-                report = generate_comprehensive_report(results, analysis_type)
+                # Generate report
+                report = generate_comprehensive_report(results, "Trade to Non-Trade Transfer")
                 st.markdown(report)
                 
-                # Additional data preview
-                st.subheader("Data Used in Analysis")
+                # Display analyzed data
+                st.subheader("Analyzed EBITDA Data")
                 analysis_data = pd.DataFrame({
-                    ebitda_cols[0]: data_high,
-                    ebitda_cols[1]: data_low
+                    'Trade EBITDA': trade_data_clean,
+                    'Non-Trade EBITDA': non_trade_data_clean
                 })
                 st.dataframe(analysis_data)
             else:
-                st.warning("No valid numerical data found for analysis.")
+                st.warning("Insufficient valid numerical data for analysis.")
+        else:
+            st.warning("Not enough EBITDA data columns for comprehensive analysis.")
+    
+    else:  # Material Level Analysis
+        # Validate Non-Total DataFrame
+        if non_total_df is None or non_total_df.empty:
+            st.warning("No Material data available for analysis.")
+            return
         
-        except Exception as e:
-            st.error(f"An error occurred during analysis: {e}")
-            # Print more detailed error information
-            import traceback
-            st.error(traceback.format_exc())
-    else:
-        st.warning("Insufficient data for comprehensive analysis. Need at least two months of EBITDA data.")
+        # Get unique regions
+        unique_regions = sorted(non_total_df['Region Name'].unique())
+        
+        # Region selection
+        selected_region = st.selectbox("Select Region", unique_regions)
+        
+        # Filter for specific region
+        region_df = non_total_df[non_total_df['Region Name'] == selected_region]
+        
+        # Get unique materials for that region
+        unique_materials = sorted(region_df['Material Name'].unique())
+        
+        # Material selection
+        selected_material = st.selectbox("Select Material", unique_materials)
+        
+        # Filter for specific material
+        material_df = region_df[region_df['Material Name'] == selected_material]
+        
+        # Prepare Trade and Non-Trade EBITDA columns
+        trade_ebitda_cols = [col for col in material_df.columns if 'Trade EBITDA' in col]
+        non_trade_ebitda_cols = [col for col in material_df.columns if 'Non-Trade EBITDA' in col]
+        
+        # Ensure we have enough columns
+        if len(trade_ebitda_cols) >= 4 and len(non_trade_ebitda_cols) >= 4:
+            # Convert and prepare data
+            trade_data = pd.to_numeric(material_df[trade_ebitda_cols], errors='coerce')
+            non_trade_data = pd.to_numeric(material_df[non_trade_ebitda_cols], errors='coerce')
+            
+            # Transpose to get analysis-friendly format
+            trade_data_values = trade_data.values.flatten()
+            non_trade_data_values = non_trade_data.values.flatten()
+            
+            # Remove NaNs
+            valid_indices = ~(np.isnan(trade_data_values) | np.isnan(non_trade_data_values))
+            trade_data_clean = trade_data_values[valid_indices]
+            non_trade_data_clean = non_trade_data_values[valid_indices]
+            
+            # Perform analysis if we have valid data
+            if len(trade_data_clean) > 0 and len(non_trade_data_clean) > 0:
+                # Comprehensive analysis of transfer potential
+                results = analyze_ebitda_comprehensive(trade_data_clean, non_trade_data_clean)
+                
+                # Generate report
+                report = generate_comprehensive_report(results, f"Trade to Non-Trade Transfer for {selected_material}")
+                st.markdown(report)
+                
+                # Display analyzed data
+                st.subheader("Analyzed EBITDA Data")
+                analysis_data = pd.DataFrame({
+                    'Trade EBITDA': trade_data_clean,
+                    'Non-Trade EBITDA': non_trade_data_clean
+                })
+                st.dataframe(analysis_data)
+            else:
+                st.warning("Insufficient valid numerical data for analysis.")
+        else:
+            st.warning("Not enough EBITDA data columns for comprehensive analysis.")
 def add_ebitda_transfer_analysis_tab(non_total_df, total_df):
     """
     Add EBITDA Transfer Analysis as a new tab or section
@@ -443,9 +495,12 @@ def streamlit_data_merger():
         st.markdown('<h1 class="main-title">💹 EBITDA Transfer Analysis</h1>', unsafe_allow_html=True)
         
         # Check if merged data exists in session state
-        if hasattr(st.session_state, 'final_non_total_df'):
-            # Call EBITDA Transfer Analysis section
-            ebitda_transfer_analysis_section(st.session_state.final_non_total_df)
+        if hasattr(st.session_state, 'final_total_df') and hasattr(st.session_state, 'final_non_total_df'):
+            # Call EBITDA Transfer Analysis section with both DataFrames
+            ebitda_transfer_analysis_section(
+                st.session_state.final_total_df, 
+                st.session_state.final_non_total_df
+            )
         else:
             # Option to upload a file
             uploaded_analysis_file = st.file_uploader(
@@ -455,11 +510,16 @@ def streamlit_data_merger():
             
             if uploaded_analysis_file:
                 try:
+                    # Read both sheets
+                    total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Total')
                     non_total_df = pd.read_excel(uploaded_analysis_file, sheet_name='Non-Total')
+                    
                     # Call EBITDA Transfer Analysis section
-                    ebitda_transfer_analysis_section(non_total_df)
+                    ebitda_transfer_analysis_section(total_df, non_total_df)
                 except Exception as e:
                     st.error(f"An error occurred: {e}")
+                    import traceback
+                    st.error(traceback.format_exc())
             else:
                 st.info("Please upload a merged Excel file or complete the data merger first.")
     with tab2:
