@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 import io
 import openpyxl
+import streamlit as st
+import pandas as pd
+import io
+import openpyxl
+from openpyxl.utils import get_column_letter
 
 def get_visible_columns(ws):
     """
@@ -14,10 +19,26 @@ def get_visible_columns(ws):
         list: List of visible column names
     """
     visible_columns = []
-    for col in ws[1]:
-        # Check if column is not hidden
-        if not col.hidden:
-            visible_columns.append(col.value)
+    for col in range(1, ws.max_column + 1):
+        column_letter = get_column_letter(col)
+        
+        # Check column visibility
+        try:
+            # Some versions of openpyxl might handle column visibility differently
+            is_hidden = ws.column_dimensions[column_letter].hidden if column_letter in ws.column_dimensions else False
+        except:
+            is_hidden = False
+        
+        # Get cell value safely
+        try:
+            cell_value = ws.cell(row=1, column=col).value
+        except:
+            cell_value = None
+        
+        # Add column if not hidden and has a value
+        if not is_hidden and cell_value is not None:
+            visible_columns.append(cell_value)
+    
     return visible_columns
 
 def read_visible_columns(file, sheet_name):
@@ -48,33 +69,55 @@ def read_visible_columns(file, sheet_name):
     return df
 
 def preprocess_data(df):
+    def safe_convert(value):
+        """Safely convert value to string or return None"""
+        try:
+            # Convert to string, handling different types
+            str_val = str(value).strip()
+            return str_val if str_val else None
+        except:
+            return None
+
+    # Convert to list and handle potential issues
+    first_column_values = df.iloc[:, 0].tolist()
+    
+    # Preprocessing steps
     df = df.iloc[3:]
     df = df.reset_index(drop=True)
-    df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
-    region_indices = df[df.iloc[:, 0].str.contains("Region", case=False, na=False)].index
+    # Remove rows containing 'Zone' (case-insensitive)
+    df = df[~df.iloc[:, 0].astype(str).str.contains("Zone", case=False, na=False)]
+    
+    # Identify and remove rows around 'Region' rows
+    region_indices = df[df.iloc[:, 0].astype(str).str.contains("Region", case=False, na=False)].index
     rows_to_remove = []
     for index in region_indices:
         rows_to_remove.extend([index - 2, index - 1, index])    
     df = df.drop(rows_to_remove)
     df = df.reset_index(drop=True)
     
-    first_column_values = df.iloc[:, 0].values
+    # Fill missing values in first column
     current_fill_value = None
-    for i, value in enumerate(first_column_values):
-        if pd.notna(value):
+    for i in range(len(df)):
+        # Safely get and convert value
+        value = safe_convert(df.iloc[i, 0])
+        
+        if value:
             current_fill_value = value
-        elif pd.isna(value) and current_fill_value is not None:
+        elif current_fill_value is not None:
             df.iloc[i, 0] = current_fill_value
-            
-    all_india_df = df[df.iloc[:, 0].str.contains("All India", case=False, na=False)]
-    if not all_india_df.empty:
-        all_india_index = all_india_df.index[0]
+    
+    # Remove 'All India' section
+    all_india_mask = df.iloc[:, 0].astype(str).str.contains("All India", case=False, na=False)
+    if all_india_mask.any():
+        all_india_index = all_india_mask[all_india_mask].index[0]
         if all_india_index > 0:
             df = df.drop(all_india_index - 1)
             df = df.reset_index(drop=True)
-
+    
+    # Remove last two rows (typically summary or footer)
     df = df[:-2]
+    
     return df
 
 def process_and_merge(df, file_type):
