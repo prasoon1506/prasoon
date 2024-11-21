@@ -1,23 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
-
-def preprocess_data(df, sheet_name):
-    # Special preprocessing for TOTAL sheet
-    if sheet_name == "TOTAL":
-        # Find the column containing "JKLC+UCWL" in the first row
-        jklc_ucwl_col = None
-        first_row = df.iloc[0]
-        for col, value in first_row.items():
-            if isinstance(value, str) and "JKLC+UCWL" in value:
-                jklc_ucwl_col = col
-                break
-        
-        # If JKLC+UCWL column found, remove columns before it (except first two)
-        if jklc_ucwl_col is not None:
-            col_index = df.columns.get_loc(jklc_ucwl_col)
-            df = df.iloc[:, max(0, col_index-1):]
-    
+def preprocess_data(df, sheet_type=None):
     # Remove first 3 rows
     df = df.iloc[3:]
     df = df.reset_index(drop=True)
@@ -25,7 +9,7 @@ def preprocess_data(df, sheet_name):
     # Remove rows containing "Zone"
     df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
-    # Remove "Region" rows and adjacent rows
+    # Remove Region header rows
     region_indices = df[df.iloc[:, 0].str.contains("Region", case=False, na=False)].index
     rows_to_remove = []
     for index in region_indices:
@@ -33,7 +17,7 @@ def preprocess_data(df, sheet_name):
     df = df.drop(rows_to_remove)
     df = df.reset_index(drop=True)
     
-    # Fill first column with last known non-null value
+    # Fill missing values in first column
     first_column_values = df.iloc[:, 0].values
     current_fill_value = None
     for i, value in enumerate(first_column_values):
@@ -42,7 +26,17 @@ def preprocess_data(df, sheet_name):
         elif pd.isna(value) and current_fill_value is not None:
             df.iloc[i, 0] = current_fill_value
     
-    # Remove "All India" row and its preceding row
+    # Special handling for TOTAL sheet
+    if sheet_type == 'TOTAL':
+        # Find the column with "JKLC+UCWL"
+        jklc_ucwl_column = df.apply(lambda row: any(str(cell).strip() == "JKLC+UCWL" for cell in row), axis=0)
+        
+        # If the column is found, remove columns before it (except first two columns)
+        if jklc_ucwl_column.any():
+            jklc_ucwl_index = jklc_ucwl_column.idxmax()
+            df = df.iloc[:, max(0, jklc_ucwl_index):]
+    
+    # Remove "All India" row if it exists
     all_india_df = df[df.iloc[:, 0].str.contains("All India", case=False, na=False)]
     if not all_india_df.empty:
         all_india_index = all_india_df.index[0]
