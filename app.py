@@ -3,7 +3,7 @@ import pandas as pd
 import io
 
 def preprocess_data(df):
-    df = df.iloc[3:]
+df = df.iloc[3:]
     df = df.reset_index(drop=True)
     df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
@@ -300,7 +300,7 @@ def streamlit_data_merger():
                     non_trade_ebitda_data.index.name = 'Month'
                     st.dataframe(non_trade_ebitda_data)
 
-                else:  # Total Analysis
+                else:  
                     # Get unique regions for total
                     unique_total_regions = sorted(total_df['Region Name'].unique())
                     
