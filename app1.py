@@ -303,8 +303,6 @@ def streamlit_data_merger():
 
     # Create tabs
     tab1, tab2, tab3 = st.tabs(["Data Merger", "Data Analysis","EBITDA Transfer Analysis"])
-    with tab3:
-        run_ebitda_analysis_tab()
     with tab1:
         # Title
         st.markdown('<h1 class="main-title">📊 Data Merger</h1>', unsafe_allow_html=True)
