@@ -3,7 +3,7 @@ import pandas as pd
 import io
 
 def preprocess_data(df):
-df = df.iloc[3:]
+    df = df.iloc[3:]
     df = df.reset_index(drop=True)
     df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
@@ -310,11 +310,14 @@ def streamlit_data_merger():
                     # Filter DataFrame by region
                     specific_total_region_data = total_df[total_df['Region Name'] == selected_total_region]
                     # Prepare columns for display
-                    trade_quantity_cols = [col for col in specific_total_region_data.columns if col.endswith('Trade Quantity')]
-                    trade_ebitda_cols = [col for col in specific_total_region_data.columns if col.endswith('Trade EBITDA')]
-                    non_trade_quantity_cols = [col for col in specific_total_region_data.columns if col.endswith('Non-Trade Quantity')]
-                    non_trade_ebitda_cols = [col for col in specific_total_region_data.columns if col.endswith('Non-Trade EBITDA')]
-        
+                    trade_quantity_cols = [col for col in specific_total_region_data.columns 
+                                           if 'Trade Quantity' in col and 'Non-Trade' not in col]
+                    trade_ebitda_cols = [col for col in specific_total_region_data.columns 
+                                         if 'Trade EBITDA' in col and 'Non-Trade' not in col]
+                    non_trade_quantity_cols = [col for col in specific_total_region_data.columns 
+                                               if 'Non-Trade Quantity' in col]
+                    non_trade_ebitda_cols = [col for col in specific_total_region_data.columns 
+                                             if 'Non-Trade EBITDA' in col]
                     
                     # Display results
                     st.subheader(f"Total Analysis for {selected_total_region}")
