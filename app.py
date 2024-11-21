@@ -2,30 +2,11 @@ import streamlit as st
 import pandas as pd
 import io
 
-def preprocess_data(df, sheet_type):
-    # First, find the column with JKLC+UCWL in the first row
-    jklc_ucwl_col = None
-    first_row = df.iloc[0]
-    
-    for col, value in first_row.items():
-        if isinstance(value, str) and "JKLC+UCWL" in str(value):
-            jklc_ucwl_col = col
-            break
-    
-    # Remove first 3 rows
+def preprocess_data(df):
     df = df.iloc[3:]
     df = df.reset_index(drop=True)
-    
-    # For TOTAL sheet, remove columns before JKLC+UCWL
-    if sheet_type == 'TOTAL' and jklc_ucwl_col is not None:
-        # Find the column index
-        col_to_keep = df.columns.get_loc(jklc_ucwl_col)
-        df = df.iloc[:, max(0, col_to_keep-1):]
-    
-    # Remove rows containing "Zone"
     df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
-    # Remove region-related rows
     region_indices = df[df.iloc[:, 0].str.contains("Region", case=False, na=False)].index
     rows_to_remove = []
     for index in region_indices:
@@ -33,7 +14,6 @@ def preprocess_data(df, sheet_type):
     df = df.drop(rows_to_remove)
     df = df.reset_index(drop=True)
     
-    # Fill NaN values in first column with last known non-NaN value
     first_column_values = df.iloc[:, 0].values
     current_fill_value = None
     for i, value in enumerate(first_column_values):
@@ -41,8 +21,7 @@ def preprocess_data(df, sheet_type):
             current_fill_value = value
         elif pd.isna(value) and current_fill_value is not None:
             df.iloc[i, 0] = current_fill_value
-    
-    # Remove "All India" row and preceding row if present
+            
     all_india_df = df[df.iloc[:, 0].str.contains("All India", case=False, na=False)]
     if not all_india_df.empty:
         all_india_index = all_india_df.index[0]
@@ -50,167 +29,187 @@ def preprocess_data(df, sheet_type):
             df = df.drop(all_india_index - 1)
             df = df.reset_index(drop=True)
 
-    # Remove last two rows
     df = df[:-2]
     return df
 
-def process_and_merge(df, file_type, sheet_type):
-    # Define column names based on file type and sheet type
-    column_names = [
-        "Region Name", "Material Name", 
-        f"{file_type.split('-')[0]} Trade Quantity", 
-        f"{file_type.split('-')[1]} Trade Quantity",
-        f"{file_type.split('-')[0]} Trade EBITDA", 
-        f"{file_type.split('-')[1]} Trade EBITDA", 
-        "Increase in Trade EBITDA",
-        f"{file_type.split('-')[0]} Non-Trade Quantity", 
-        f"{file_type.split('-')[1]} Non-Trade Quantity", 
-        f"{file_type.split('-')[0]} Non-Trade EBITDA", 
-        f"{file_type.split('-')[1]} Non-Trade EBITDA", 
-        "Increase in Non-Trade EBITDA", 
-        f"{file_type.split('-')[0]} Total Quantity", 
-        f"{file_type.split('-')[1]} Total Quantity", 
-        f"{file_type.split('-')[0]} Total EBITDA", 
-        f"{file_type.split('-')[1]} Total EBITDA", 
-        "Increase in Total EBITDA"
-    ]
+def process_and_merge(df, file_type):
+    # Define column names based on file type
+    if file_type == "Oct-Sep":
+        column_names = ["Region Name", "Material Name", 
+                        "Oct Trade Quantity", "Sep Trade Quantity",
+                        "Oct Trade EBITDA", "Sep Trade EBITDA", "Increase in Trade EBITDA",
+                        "Oct Non-Trade Quantity", "Sep Non-Trade Quantity", 
+                        "Oct Non-Trade EBITDA", "Sep Non-Trade EBITDA", "Increase in Non-Trade EBITDA", 
+                        "Oct Total Quantity", "Sep Total Quantity", 
+                        "Oct Total EBITDA", "Sep Total EBITDA", "Increase in Total EBITDA"]
+    elif file_type == "Sep-Aug":
+        column_names = ["Region Name", "Material Name", 
+                        "Sep Trade Quantity", "Aug Trade Quantity",
+                        "Sep Trade EBITDA", "Aug Trade EBITDA", "Increase in Trade EBITDA",
+                        "Sep Non-Trade Quantity", "Aug Non-Trade Quantity", 
+                        "Sep Non-Trade EBITDA", "Aug Non-Trade EBITDA", "Increase in Non-Trade EBITDA", 
+                        "Sep Total Quantity", "Aug Total Quantity", 
+                        "Sep Total EBITDA", "Aug Total EBITDA", "Increase in Total EBITDA"]
+    elif file_type == "Aug-Jul":
+        column_names = ["Region Name", "Material Name", 
+                        "Aug Trade Quantity", "Jul Trade Quantity",
+                        "Aug Trade EBITDA", "Jul Trade EBITDA", "Increase in Trade EBITDA",
+                        "Aug Non-Trade Quantity", "Jul Non-Trade Quantity", 
+                        "Aug Non-Trade EBITDA", "Jul Non-Trade EBITDA", "Increase in Non-Trade EBITDA", 
+                        "Aug Total Quantity", "Jul Total Quantity", 
+                        "Aug Total EBITDA", "Jul Total EBITDA", "Increase in Total EBITDA"]
     
     # Assign column names
     df.columns = column_names
 
-    # Remove specific increase columns from Total DataFrame
-    columns_to_remove = ["Increase in Trade EBITDA", "Increase in Non-Trade EBITDA", "Increase in Total EBITDA"]
-    
-    # Total sheet specific handling
-    if sheet_type == 'TOTAL':
-        # Drop increase columns from total DataFrame
-        df = df.drop(columns=columns_to_remove, errors='ignore')
-        # Ensure exactly 17 columns
-        if len(df.columns) > 17:
-            df = df.iloc[:, :17]
-    else:
-        # Non-Total sheets
-        df_total = df[df.iloc[:, 0].str.contains("Total", case=False, na=False)].copy()
-        df = df[~df.iloc[:, 0].str.contains("Total", case=False, na=False)]
-        
-        # Drop increase columns from both DataFrames
-        df = df.drop(columns=columns_to_remove, errors='ignore')
-        df_total = df_total.drop(columns=columns_to_remove, errors='ignore')
-        
-        return df, df_total
+    # Create separate DataFrames for Total and Non-Total rows
+    total_mask = df.iloc[:, 0].str.contains("Total", case=False, na=False)
+    df_total = df[total_mask]
+    df_no_total = df[~total_mask]
 
-def process_excel_files(uploaded_files):
-    # Initialize dictionary to store processed DataFrames
-    processed_dfs = {
-        'JKLC': {'Non-Total': [], 'Total': []},
-        'UCWL': {'Non-Total': [], 'Total': []},
-        'TOTAL': {'Non-Total': [], 'Total': []}
-    }
+    # Remove specific increase columns from Total DataFrame if present
+    columns_to_remove = ["Increase in Trade EBITDA", "Increase in Non-Trade EBITDA", "Increase in Total EBITDA"]
+    df_total = df_total.drop(columns=columns_to_remove, errors='ignore')
+    df_no_total = df_no_total.drop(columns=columns_to_remove, errors='ignore')
     
-    # Predefined file types
+    return df_no_total, df_total
+
+def streamlit_data_merger():
+    # Set page configuration
+    st.set_page_config(
+        page_title="Data Merger App", 
+        page_icon=":bar_chart:", 
+        layout="wide"
+    )
+
+    # Custom CSS for styling
+    st.markdown("""
+    <style>
+    .main-title {
+        font-size: 2.5rem;
+        color: #2C3E50;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .upload-section {
+        background-color: #F0F4F8;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .stButton>button {
+        background-color: #3498DB;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #2980B9;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Title
+    st.markdown('<h1 class="main-title">📊 Data Merger Application</h1>', unsafe_allow_html=True)
+
+    # File upload section
+    st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+    
+    # Initialize session state for files and sheets
+    if 'files' not in st.session_state:
+        st.session_state.files = [None, None, None]
+    if 'selected_sheets' not in st.session_state:
+        st.session_state.selected_sheets = [None, None, None]
+
+    # File upload and sheet selection
     file_types = ["Oct-Sep", "Sep-Aug", "Aug-Jul"]
     
-    # Process each uploaded file
-    for file in uploaded_files:
-        # Read the Excel file
-        xls = pd.ExcelFile(file)
+    for i in range(3):
+        st.subheader(f"Upload {file_types[i]} File")
+        uploaded_file = st.file_uploader(
+            f"Choose Excel file for {file_types[i]}", 
+            type=['xlsx', 'xls'], 
+            key=f"file_uploader_{i}"
+        )
         
-        # Get the current file type
-        file_type = file_types[len(uploaded_files) - len(file_types)]
-        
-        # Process each sheet type
-        for sheet_type in ['JKLC', 'UCWL', 'TOTAL']:
-            # Read the sheet
-            df = pd.read_excel(xls, sheet_name=sheet_type)
+        if uploaded_file is not None:
+            st.session_state.files[i] = uploaded_file
             
-            # Preprocess the data
-            df = preprocess_data(df, sheet_type)
+            # Read all sheets
+            xls = pd.ExcelFile(uploaded_file)
+            sheet_names = xls.sheet_names
             
-            # Process and merge data
-            if sheet_type != 'TOTAL':
-                df_no_total, df_total = process_and_merge(df, file_type, sheet_type)
-                processed_dfs[sheet_type]['Non-Total'].append(df_no_total)
-                processed_dfs[sheet_type]['Total'].append(df_total)
-            else:
-                # For TOTAL sheet, just process without splitting
-                df = process_and_merge(df, file_type, sheet_type)
-                processed_dfs[sheet_type]['Non-Total'].append(df)
-    
-    # Create output DataFrames
-    output_dfs = {}
-    
-    # Merge and process DataFrames
-    for sheet_type in ['JKLC', 'UCWL', 'TOTAL']:
-        for df_type in ['Non-Total', 'Total']:
-            if sheet_type == 'TOTAL' and df_type == 'Total':
-                # Skip Total for TOTAL sheet
-                continue
-            
-            # Merge DataFrames
-            if len(processed_dfs[sheet_type][df_type]) > 0:
-                final_df = processed_dfs[sheet_type][df_type][0]
-                for df in processed_dfs[sheet_type][df_type][1:]:
-                    if sheet_type == 'TOTAL':
-                        # For TOTAL sheet, just concatenate
-                        final_df = pd.concat([final_df, df], axis=1)
-                    else:
-                        # For other sheets, merge on Region and Material Name
-                        merge_cols = ["Region Name", "Material Name"]
-                        if df_type == 'Total':
-                            merge_cols = ["Region Name"]
-                        
-                        # Identify and merge columns
-                        df = df[merge_cols + [col for col in df.columns if col not in final_df.columns]]
-                        final_df = pd.merge(final_df, df, on=merge_cols, how="left")
-                
-                # Store in output DataFrames
-                output_key = f"{df_type}_{sheet_type}"
-                output_dfs[output_key] = final_df
-    
-    return output_dfs
-
-def main():
-    st.title("Excel Data Processing App")
-    
-    # File upload
-    uploaded_files = st.file_uploader(
-        "Upload Excel Files (Oct-Sep, Sep-Aug, Aug-Jul in order)", 
-        type=['xlsx'], 
-        accept_multiple_files=True
-    )
-    
-    # Process files when uploaded
-    if uploaded_files and len(uploaded_files) == 3:
-        try:
-            # Process the files
-            output_dfs = process_excel_files(uploaded_files)
-            
-            # Create Excel file in memory
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                for sheet_name, df in output_dfs.items():
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-            output.seek(0)
-            
-            # Download button
-            st.download_button(
-                label="Download Processed Excel File",
-                data=output,
-                file_name='final_merged_data.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            # Sheet selection
+            selected_sheet = st.selectbox(
+                f"Select sheet for {file_types[i]}", 
+                sheet_names, 
+                key=f"sheet_selector_{i}"
             )
-            
-            # Display DataFrame information
-            st.subheader("Processed Sheets Overview")
-            for sheet_name, df in output_dfs.items():
-                st.write(f"Sheet: {sheet_name}")
-                st.write(f"Columns: {df.columns.tolist()}")
-                st.write(f"Shape: {df.shape}")
-                st.write("---")
-        
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
-            st.error("Please ensure you've uploaded the correct files in the right order.")
+            st.session_state.selected_sheets[i] = selected_sheet
 
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Merge button
+    if st.button("Merge Data", key="merge_button"):
+        # Validate file uploads and sheet selections
+        if all(st.session_state.files) and all(st.session_state.selected_sheets):
+            processed_dfs = []
+            processed_total_dfs = []
+            
+            try:
+                for i in range(3):
+                    # Read specific sheet
+                    df = pd.read_excel(
+                        st.session_state.files[i], 
+                        sheet_name=st.session_state.selected_sheets[i]
+                    )
+                    
+                    # Preprocess and process
+                    df = preprocess_data(df)
+                    df_no_total, df_total = process_and_merge(df, file_types[i])
+                    
+                    processed_dfs.append(df_no_total)
+                    processed_total_dfs.append(df_total)
+
+                # Merge non-total DataFrames
+                final_df = processed_dfs[0]
+                for df in processed_dfs[1:]:
+                    df = df[["Region Name", "Material Name"] + [col for col in df.columns if col not in final_df.columns]]
+                    final_df = pd.merge(final_df, df, on=["Region Name", "Material Name"], how="left")
+                
+                # Merge total DataFrames
+                final_total_df = processed_total_dfs[0]
+                for df in processed_total_dfs[1:]:
+                    df = df[["Region Name"] + [col for col in df.columns if col not in final_total_df.columns]]
+                    final_total_df = pd.merge(final_total_df, df, on="Region Name", how="left")
+                
+                # Create Excel file in memory
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    final_df.to_excel(writer, sheet_name='Non-Total', index=False)
+                    final_total_df.to_excel(writer, sheet_name='Total', index=False)
+                output.seek(0)
+                
+                # Download button
+                st.download_button(
+                    label="Download Merged Excel File",
+                    data=output,
+                    file_name='final_merged_data.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                
+                # Display DataFrames
+                st.success("Data merged successfully!")
+                st.subheader("Non-Total DataFrame Preview")
+                st.dataframe(final_df.head())
+                st.subheader("Total DataFrame Preview")
+                st.dataframe(final_total_df.head())
+                
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+        else:
+            st.warning("Please upload all three files and select sheets!")
+
+# Run the Streamlit app
 if __name__ == "__main__":
-    main()
+    streamlit_data_merger()
