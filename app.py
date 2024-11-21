@@ -309,10 +309,12 @@ def streamlit_data_merger():
                     
                     # Filter DataFrame by region
                     specific_total_region_data = total_df[total_df['Region Name'] == selected_total_region]
-                    trade_quantity_cols = [col for col in specific_total_region_data.columns if 'Trade Quantity' in col]
-                    trade_ebitda_cols = [col for col in specific_total_region_data.columns if 'Trade EBITDA' in col]
-                    non_trade_quantity_cols = [col for col in specific_total_region_data.columns if 'Non-Trade Quantity' in col]
-                    non_trade_ebitda_cols = [col for col in specific_total_region_data.columns if 'Non-Trade EBITDA' in col]
+                    # Prepare columns for display
+                    trade_quantity_cols = [col for col in specific_total_region_data.columns if col.endswith('Trade Quantity')]
+                    trade_ebitda_cols = [col for col in specific_total_region_data.columns if col.endswith('Trade EBITDA')]
+                    non_trade_quantity_cols = [col for col in specific_total_region_data.columns if col.endswith('Non-Trade Quantity')]
+                    non_trade_ebitda_cols = [col for col in specific_total_region_data.columns if col.endswith('Non-Trade EBITDA')]
+        
                     
                     # Display results
                     st.subheader(f"Total Analysis for {selected_total_region}")
