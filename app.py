@@ -1,123 +1,35 @@
 import streamlit as st
 import pandas as pd
 import io
-import openpyxl
-import streamlit as st
-import pandas as pd
-import io
-import openpyxl
-from openpyxl.utils import get_column_letter
-
-def get_visible_columns(ws):
-    """
-    Extract visible column names from an Excel worksheet
-    
-    Args:
-        ws (openpyxl.worksheet.Worksheet): Excel worksheet
-    
-    Returns:
-        list: List of visible column names
-    """
-    visible_columns = []
-    for col in range(1, ws.max_column + 1):
-        column_letter = get_column_letter(col)
-        
-        # Check column visibility
-        try:
-            # Some versions of openpyxl might handle column visibility differently
-            is_hidden = ws.column_dimensions[column_letter].hidden if column_letter in ws.column_dimensions else False
-        except:
-            is_hidden = False
-        
-        # Get cell value safely
-        try:
-            cell_value = ws.cell(row=1, column=col).value
-        except:
-            cell_value = None
-        
-        # Add column if not hidden and has a value
-        if not is_hidden and cell_value is not None:
-            visible_columns.append(cell_value)
-    
-    return visible_columns
-
-def read_visible_columns(file, sheet_name):
-    """
-    Read only visible columns from an Excel file
-    
-    Args:
-        file (file-like object): Uploaded Excel file
-        sheet_name (str): Name of the sheet to read
-    
-    Returns:
-        pd.DataFrame: DataFrame with only visible columns
-    """
-    # Load workbook and worksheet
-    wb = openpyxl.load_workbook(file, data_only=True, keep_vba=False)
-    ws = wb[sheet_name]
-    
-    # Get visible column names
-    visible_column_names = get_visible_columns(ws)
-    
-    # Read the DataFrame
-    df = pd.read_excel(
-        file, 
-        sheet_name=sheet_name, 
-        usecols=visible_column_names
-    )
-    
-    return df
 
 def preprocess_data(df):
-    def safe_convert(value):
-        """Safely convert value to string or return None"""
-        try:
-            # Convert to string, handling different types
-            str_val = str(value).strip()
-            return str_val if str_val else None
-        except:
-            return None
-
-    # Convert to list and handle potential issues
-    first_column_values = df.iloc[:, 0].tolist()
-    
-    # Preprocessing steps
     df = df.iloc[3:]
     df = df.reset_index(drop=True)
+    df = df[~df.iloc[:, 0].str.contains("Zone", case=False, na=False)]
     
-    # Remove rows containing 'Zone' (case-insensitive)
-    df = df[~df.iloc[:, 0].astype(str).str.contains("Zone", case=False, na=False)]
-    
-    # Identify and remove rows around 'Region' rows
-    region_indices = df[df.iloc[:, 0].astype(str).str.contains("Region", case=False, na=False)].index
+    region_indices = df[df.iloc[:, 0].str.contains("Region", case=False, na=False)].index
     rows_to_remove = []
     for index in region_indices:
         rows_to_remove.extend([index - 2, index - 1, index])    
     df = df.drop(rows_to_remove)
     df = df.reset_index(drop=True)
     
-    # Fill missing values in first column
+    first_column_values = df.iloc[:, 0].values
     current_fill_value = None
-    for i in range(len(df)):
-        # Safely get and convert value
-        value = safe_convert(df.iloc[i, 0])
-        
-        if value:
+    for i, value in enumerate(first_column_values):
+        if pd.notna(value):
             current_fill_value = value
-        elif current_fill_value is not None:
+        elif pd.isna(value) and current_fill_value is not None:
             df.iloc[i, 0] = current_fill_value
-    
-    # Remove 'All India' section
-    all_india_mask = df.iloc[:, 0].astype(str).str.contains("All India", case=False, na=False)
-    if all_india_mask.any():
-        all_india_index = all_india_mask[all_india_mask].index[0]
+            
+    all_india_df = df[df.iloc[:, 0].str.contains("All India", case=False, na=False)]
+    if not all_india_df.empty:
+        all_india_index = all_india_df.index[0]
         if all_india_index > 0:
             df = df.drop(all_india_index - 1)
             df = df.reset_index(drop=True)
-    
-    # Remove last two rows (typically summary or footer)
+
     df = df[:-2]
-    
     return df
 
 def process_and_merge(df, file_type):
@@ -147,12 +59,8 @@ def process_and_merge(df, file_type):
                         "Aug Total Quantity", "Jul Total Quantity", 
                         "Aug Total EBITDA", "Jul Total EBITDA", "Increase in Total EBITDA"]
     
-    # Select only the columns present in the DataFrame
-    available_columns = [col for col in column_names if col in df.columns]
-    df = df[available_columns]
-    
     # Assign column names
-    df.columns = available_columns
+    df.columns = column_names
 
     # Create separate DataFrames for Total and Non-Total rows
     total_mask = df.iloc[:, 0].str.contains("Total", case=False, na=False)
@@ -161,10 +69,7 @@ def process_and_merge(df, file_type):
 
     # Remove specific increase columns from Total DataFrame if present
     columns_to_remove = ["Increase in Trade EBITDA", "Increase in Non-Trade EBITDA", "Increase in Total EBITDA"]
-    columns_to_remove = [col for col in columns_to_remove if col in df_total.columns]
     df_total = df_total.drop(columns=columns_to_remove, errors='ignore')
-    
-    columns_to_remove = [col for col in columns_to_remove if col in df_no_total.columns]
     df_no_total = df_no_total.drop(columns=columns_to_remove, errors='ignore')
     
     return df_no_total, df_total
@@ -201,11 +106,6 @@ def streamlit_data_merger():
         background-color: #2980B9;
         transform: scale(1.05);
     }
-    .hidden-info {
-        color: #7F8C8D;
-        font-size: 0.9rem;
-        margin-top: 10px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -220,8 +120,6 @@ def streamlit_data_merger():
         st.session_state.files = [None, None, None]
     if 'selected_sheets' not in st.session_state:
         st.session_state.selected_sheets = [None, None, None]
-    if 'visible_columns' not in st.session_state:
-        st.session_state.visible_columns = [[], [], []]
 
     # File upload and sheet selection
     file_types = ["Oct-Sep", "Sep-Aug", "Aug-Jul"]
@@ -237,9 +135,9 @@ def streamlit_data_merger():
         if uploaded_file is not None:
             st.session_state.files[i] = uploaded_file
             
-            # Load workbook and get sheet names
-            wb = openpyxl.load_workbook(uploaded_file, read_only=True)
-            sheet_names = wb.sheetnames
+            # Read all sheets
+            xls = pd.ExcelFile(uploaded_file)
+            sheet_names = xls.sheet_names
             
             # Sheet selection
             selected_sheet = st.selectbox(
@@ -248,17 +146,6 @@ def streamlit_data_merger():
                 key=f"sheet_selector_{i}"
             )
             st.session_state.selected_sheets[i] = selected_sheet
-
-            # Get visible columns
-            ws = wb[selected_sheet]
-            visible_cols = get_visible_columns(ws)
-            st.session_state.visible_columns[i] = visible_cols
-            
-            # Display visible and hidden column information
-            wb.close()
-            
-            # Column visibility information
-            st.markdown(f"<div class='hidden-info'>Visible Columns: {len(visible_cols)}</div>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -271,10 +158,10 @@ def streamlit_data_merger():
             
             try:
                 for i in range(3):
-                    # Read only visible columns
-                    df = read_visible_columns(
+                    # Read specific sheet
+                    df = pd.read_excel(
                         st.session_state.files[i], 
-                        st.session_state.selected_sheets[i]
+                        sheet_name=st.session_state.selected_sheets[i]
                     )
                     
                     # Preprocess and process
@@ -313,20 +200,10 @@ def streamlit_data_merger():
                 
                 # Display DataFrames
                 st.success("Data merged successfully!")
-                
-                # Columns information
-                st.subheader("Merged Columns Information")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.subheader("Non-Total DataFrame")
-                    st.write("Columns:", final_df.columns.tolist())
-                    st.dataframe(final_df.head())
-                
-                with col2:
-                    st.subheader("Total DataFrame")
-                    st.write("Columns:", final_total_df.columns.tolist())
-                    st.dataframe(final_total_df.head())
+                st.subheader("Non-Total DataFrame Preview")
+                st.dataframe(final_df.head())
+                st.subheader("Total DataFrame Preview")
+                st.dataframe(final_total_df.head())
                 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
