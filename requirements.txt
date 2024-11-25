@@ -22,4 +22,4 @@ twilio
 kaleido
 streamlit_cookies_manager
 xlsxwriter
-openai = 0.28
+openai == 0.28
