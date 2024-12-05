@@ -11,6 +11,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
 def convert_dataframe_to_pdf(df, filename):
     """
     Convert DataFrame to PDF with full-width remarks rows and optimized layout.
