@@ -447,7 +447,45 @@ def main():
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
-
+                graph_download_format = st.selectbox("Download Graph as", ['PNG', 'PDF'])
+                    
+                    if st.button("Download Graph"):
+                        if graph_download_format == 'PNG':
+                            img_bytes = pio.to_image(fig, format='png')
+                            st.download_button(
+                                label="Download Graph as PNG",
+                                data=img_bytes,
+                                file_name=f'{selected_region_analysis}_{graph_type}_trend.png',
+                                mime='image/png'
+                            )
+                        else:
+                            pdf_bytes = pio.to_image(fig, format='pdf')
+                            st.download_button(
+                                label="Download Graph as PDF",
+                                data=pdf_bytes,
+                                file_name=f'{selected_region_analysis}_{graph_type}_trend.pdf',
+                                mime='application/pdf'
+                            )
+                    
+                    # Display Remarks
+                    st.markdown("### Remarks")
+                    remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
+                    
+                    if not remarks_df.empty:
+                        # Create a styled container for remarks
+                        for _, row in remarks_df.iterrows():
+                            st.markdown(f"""
+                            <div style="background-color:#f0f2f6; 
+                                        border-left: 5px solid #4a4a4a; 
+                                        padding: 10px; 
+                                        margin-bottom: 10px; 
+                                        border-radius: 5px;">
+                                <strong>{row['Date'].strftime('%d-%b %Y')}</strong>: 
+                                {row['Remarks']}
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.info("No remarks found for this region.")
             # Global Download Section
             st.markdown("## 📥 Download Options")
             
