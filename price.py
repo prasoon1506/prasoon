@@ -347,10 +347,10 @@ def main():
                                 else:
                                     start_date = None
                                 download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
-                                    format_map = {'Excel (.xlsx)': 'xlsx','PDF (.pdf)': 'pdf'}
-                                    selected_format = format_map[download_format]
-                                    output = save_processed_dataframe(df, start_date, selected_format)
-                                    st.download_button(label=f"Download Processed File ({download_format})",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
+                                format_map = {'Excel (.xlsx)': 'xlsx','PDF (.pdf)': 'pdf'}
+                                selected_format = format_map[download_format]
+                                output = save_processed_dataframe(df, start_date, selected_format)
+                                st.download_button(label=f"Download Processed File ({download_format})",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
 
             with col2:
                 st.subheader("Region Analysis")
