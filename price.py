@@ -337,7 +337,7 @@ def main():
                             # Region-specific data entry
                             region_df = df[df['Region(District)'] == selected_region]
                             from datetime import datetime
-                            date_input = st.text_input(f"Enter Date for {selected_region}", value=datetime.now().strftime("%d-%b %Y"),  # Set default to current dateplaceholder="DD-Mon YYYY, e.g., 01-Jan 2024",key=f"date_{selected_region}")
+                            date_input = st.text_input(f"Enter Date for {selected_region}", value=datetime.now().strftime("%d-%b %Y"),placeholder="DD-Mon YYYY, e.g., 01-Jan 2024",key=f"date_{selected_region}")
                             
                             # Input for financial values
                             inv_input = st.number_input(
