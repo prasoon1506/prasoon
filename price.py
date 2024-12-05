@@ -6,7 +6,6 @@ import plotly.express as fx
 import plotly.graph_objs as go
 import plotly.io as pio
 from reportlab.lib import colors
-import inch
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.platypus import Paragraph
