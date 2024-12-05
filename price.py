@@ -249,9 +249,6 @@ def main():
             "Does this file require initial editing?", 
             ["No", "Yes"]
         )
-
-        # Process the file based on editing requirement
-        try:
             # Process the file
             df = process_excel_file(uploaded_file, requires_editing == "Yes")
             
@@ -384,9 +381,6 @@ def main():
                 mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
                     if selected_format == 'xlsx' else 'application/pdf'
             )
-
-        # In the region analysis remarks section:
-        # Reverse the remarks order
         remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
         remarks_df = remarks_df.sort_values('Date', ascending=False)  # Reverse order
         
