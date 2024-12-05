@@ -12,7 +12,7 @@ from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 def convert_dataframe_to_pdf(df, filename):
     """
-    Convert DataFrame to PDF with remarks inline and color-coded MoM Change
+    Convert DataFrame to PDF with full-width remarks rows
     """
     # Create a buffer
     buffer = io.BytesIO()
@@ -42,14 +42,12 @@ def convert_dataframe_to_pdf(df, filename):
         
         # Check if remarks exist for this row
         if pd.notna(row['Remarks']):
-            # Create a remarks row with yellow background
-            remarks_data = [''] * len(columns_to_include)
-            remarks_index = columns_to_include.index('Date')
-            remarks_data[remarks_index] = f"Remarks: {row['Remarks']}"
+            # Create a full-width remarks row
+            remarks_data = ['Remarks: ' + str(row['Remarks'])] + [''] * (len(columns_to_include) - 1)
             data.append(remarks_data)
     
     # Create table
-    table = Table(data, repeatRows=1)
+    table = Table(data, repeatRows=1, colWidths=[None] * len(columns_to_include))
     
     # Style the table
     table_style = [
@@ -88,11 +86,13 @@ def convert_dataframe_to_pdf(df, filename):
     
     # Styling for remarks rows
     for row_num in range(1, len(data)):
-        if row_num < len(data) and len(data[row_num]) == len(columns_to_include):
-            if 'Remarks:' in str(data[row_num]):
+        if row_num < len(data):
+            if 'Remarks:' in str(data[row_num][0]):
                 # Yellow background for remarks rows
                 table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.yellow))
                 table_style.append(('FONTNAME', (0, row_num), (-1, row_num), 'Helvetica-Oblique'))
+                # Merge cells for remarks row to span full width
+                table_style.append(('SPAN', (0, row_num), (-1, row_num)))
     
     # Apply table style
     table.setStyle(TableStyle(table_style))
