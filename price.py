@@ -308,7 +308,7 @@ def main():
                     
                     # Graph type selection
                     graph_type = st.selectbox("Select Graph Type", 
-                        ['Net Value', 'Inv.', 'RD', 'STS', 'Reglr']
+                        ['Net', 'Inv.', 'RD', 'STS', 'Reglr']
                     )
                     
                     # Create line graph based on selected type
