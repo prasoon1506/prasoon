@@ -376,7 +376,6 @@ def main():
                     else:
                         st.info("No remarks found for this region.")
                 else:
-                    else:
                     st.warning("The uploaded file does not have the required columns for analysis.")
 
         except Exception as e:
