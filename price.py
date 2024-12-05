@@ -338,12 +338,12 @@ def main():
                                 download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month"])
 
                                 if download_options == "Specific Month":
-                                 col1, col2 = st.columns(2)
-                                 with col1:
+                                  col1, col2 = st.columns(2)
+                                  with col1:
                                     month_input = st.selectbox("Select Month", ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])
-                                 with col2:
+                                  with col2:
                                     year_input = st.number_input("Select Year", min_value=2000, max_value=2030, value=2024)
-                                start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
+                                 start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
                                 else:
                                     start_date = None
                                 download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
