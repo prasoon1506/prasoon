@@ -29,8 +29,7 @@ def process_excel_file(uploaded_file, requires_editing):
     df.columns = new_header
 
     # Clean up dataframe
-    mask = df.iloc[:, 1].str.contains('Date', na=False)  
-    df = df[~mask]
+    df = df[~df.iloc[:, 1].str.contains('Date', na=False, case=False)]
 
     # Convert datetime
     datetime_series = pd.to_datetime(df.iloc[:, 1])  
@@ -54,6 +53,9 @@ def process_excel_file(uploaded_file, requires_editing):
 
     # Rename first column
     df = df.rename(columns={df.columns[0]: 'Region(District)'})
+    
+    # Reset index
+    df = df.reset_index(drop=True)
     
     return df
 
@@ -202,79 +204,82 @@ def main():
                 
                 if price_changed == "Yes":
                     # Get unique regions
-                    unique_regions = df['Region(District)'].unique() if 'Region(District)' in df.columns else []
-                    
-                    if not unique_regions:
-                        st.warning("No regions found in the dataframe. Please check your file.")
+                    if 'Region(District)' not in df.columns:
+                        st.warning("No 'Region(District)' column found. Please check your file.")
                     else:
-                        # Region selection
-                        selected_region = st.selectbox("Select Region(District)", unique_regions)
+                        unique_regions = df['Region(District)'].unique()
                         
-                        # Filter dataframe for selected region
-                        region_df = df[df['Region(District)'] == selected_region]
-                        
-                        # Date input
-                        date_input = st.text_input("Enter Date (format: DD-Mon YYYY, e.g., 01-Jan 2024)")
-                        
-                        # Input for other columns
-                        inv_input = st.number_input("Enter Inv. value", value=0.0, format="%.2f")
-                        rd_input = st.number_input("Enter RD value", value=0.0, format="%.2f")
-                        sts_input = st.number_input("Enter STS value", value=0.0, format="%.2f")
-                        reglr_input = st.number_input("Enter Reglr value", value=0.0, format="%.2f")
-                        
-                        # Calculate Net
-                        net_input = inv_input - rd_input - sts_input - reglr_input
-                        st.write(f"Calculated Net value: {net_input}")
-                        
-                        # Calculate MoM Change (only if 'Net' column exists)
-                        if 'Net' in region_df.columns:
-                            last_net_value = region_df['Net'].iloc[-1]
-                            mom_change = net_input - last_net_value
-                            st.write(f"Calculated MoM Change: {mom_change}")
+                        if len(unique_regions) == 0:
+                            st.warning("No regions found in the dataframe.")
                         else:
-                            mom_change = 0
-                        
-                        # Remarks input
-                        remarks_input = st.text_area("Enter Remarks (Optional)")
-                        
-                        # Prepare new row
-                        new_row = pd.DataFrame({
-                            'Region(District)': [selected_region],
-                            'Date': [date_input],
-                            'Inv.': [inv_input],
-                            'RD': [rd_input],
-                            'STS': [sts_input],
-                            'Reglr': [reglr_input],
-                            'Net': [net_input],
-                            'MoM Change': [mom_change],
-                            'Remarks': [remarks_input]
-                        })
-                        
-                        # Button to add new row
-                        if st.button("Add New Row"):
-                            # Find the index to insert the new row (last row of the selected region)
-                            region_rows = df[df['Region(District)'] == selected_region]
-                            last_region_index = region_rows.index[-1] + 1
+                            # Region selection
+                            selected_region = st.selectbox("Select Region(District)", unique_regions)
                             
-                            # Create a new DataFrame up to the last row of the selected region
-                            df_before = df.iloc[:last_region_index]
+                            # Filter dataframe for selected region
+                            region_df = df[df['Region(District)'] == selected_region]
                             
-                            # Create a new DataFrame after the last row of the selected region
-                            df_after = df.iloc[last_region_index:]
+                            # Date input
+                            date_input = st.text_input("Enter Date (format: DD-Mon YYYY, e.g., 01-Jan 2024)")
                             
-                            # Concatenate the DataFrames
-                            df = pd.concat([df_before, new_row, df_after], ignore_index=True)
+                            # Input for other columns
+                            inv_input = st.number_input("Enter Inv. value", value=0.0, format="%.2f")
+                            rd_input = st.number_input("Enter RD value", value=0.0, format="%.2f")
+                            sts_input = st.number_input("Enter STS value", value=0.0, format="%.2f")
+                            reglr_input = st.number_input("Enter Reglr value", value=0.0, format="%.2f")
                             
-                            # Save processed dataframe
-                            output = save_processed_dataframe(df)
+                            # Calculate Net
+                            net_input = inv_input - rd_input - sts_input - reglr_input
+                            st.write(f"Calculated Net value: {net_input}")
                             
-                            # Create download button
-                            st.download_button(
-                                label="Download Processed Excel File",
-                                data=output,
-                                file_name='processed_price_tracker.xlsx',
-                                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                            )
+                            # Calculate MoM Change
+                            if 'Net' in region_df.columns and not region_df['Net'].empty:
+                                last_net_value = region_df['Net'].iloc[-1]
+                                mom_change = net_input - last_net_value
+                                st.write(f"Calculated MoM Change: {mom_change}")
+                            else:
+                                mom_change = 0
+                            
+                            # Remarks input
+                            remarks_input = st.text_area("Enter Remarks (Optional)")
+                            
+                            # Prepare new row
+                            new_row = pd.DataFrame({
+                                'Region(District)': [selected_region],
+                                'Date': [date_input],
+                                'Inv.': [inv_input],
+                                'RD': [rd_input],
+                                'STS': [sts_input],
+                                'Reglr': [reglr_input],
+                                'Net': [net_input],
+                                'MoM Change': [mom_change],
+                                'Remarks': [remarks_input]
+                            })
+                            
+                            # Button to add new row
+                            if st.button("Add New Row"):
+                                # Find the index to insert the new row (last row of the selected region)
+                                region_rows = df[df['Region(District)'] == selected_region]
+                                last_region_index = region_rows.index[-1] + 1
+                                
+                                # Create a new DataFrame up to the last row of the selected region
+                                df_before = df.iloc[:last_region_index]
+                                
+                                # Create a new DataFrame after the last row of the selected region
+                                df_after = df.iloc[last_region_index:]
+                                
+                                # Concatenate the DataFrames
+                                df = pd.concat([df_before, new_row, df_after], ignore_index=True)
+                                
+                                # Save processed dataframe
+                                output = save_processed_dataframe(df)
+                                
+                                # Create download button
+                                st.download_button(
+                                    label="Download Processed Excel File",
+                                    data=output,
+                                    file_name='processed_price_tracker.xlsx',
+                                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                                )
 
             with col2:
                 st.subheader("Region Analysis")
