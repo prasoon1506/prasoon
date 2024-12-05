@@ -11,9 +11,23 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+import pandas as pd
+
 def convert_dataframe_to_pdf(df, filename):
     """
     Convert DataFrame to PDF with full-width remarks rows and optimized layout.
+    
+    Args:
+        df (pandas.DataFrame): Input DataFrame to convert
+        filename (str): Output PDF filename
+    
+    Returns:
+        io.BytesIO: PDF buffer
     """
     # Create a buffer
     buffer = io.BytesIO()
@@ -21,42 +35,30 @@ def convert_dataframe_to_pdf(df, filename):
     # Create PDF document
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     
-    # Prepare styles
-    styles = getSampleStyleSheet()
+    # Prepare columns to include (excluding Remarks)
+    columns_to_include = [col for col in df.columns if col != 'Remarks']
     
-    # Select columns up to MoM Change
-    columns_to_include = [
-        col for col in df.columns 
-        if col not in ['Remarks'] and 
-        (col != 'MoM Change' or df.columns.get_loc(col) <= df.columns.get_loc('MoM Change'))
-    ]
-    
-    # Prepare table data with inline remarks
+    # Prepare table data
     data = [columns_to_include]  # Header row
     
     for _, row in df.iterrows():
         # Extract row data
         row_data = [str(row[col]) for col in columns_to_include]
-        
-        # Add row to data
         data.append(row_data)
         
-        # Check if remarks exist for this row
-        if pd.notna(row['Remarks']):
-            # Create a full-width remarks row
+        # Add remarks as a separate full-width row if exists
+        if pd.notna(row.get('Remarks', '')):
             remarks_data = ['Remarks: ' + str(row['Remarks'])]
             data.append(remarks_data)
     
-    # Calculate column widths based on content
-    col_widths = []
-    for col in columns_to_include:
-        max_width = max(len(str(data[i][j])) for i in range(len(data)) for j, c in enumerate(columns_to_include) if c == col)
-        col_widths.append(max_width * 0.8 * inch)
+    # Calculate column widths
+    col_widths = [max(len(str(cell)) for cell in col_data) * 0.5 * inch 
+                  for col_data in zip(*data)]
     
     # Create table
     table = Table(data, repeatRows=1, colWidths=col_widths)
     
-    # Style the table
+    # Define table style
     table_style = [
         # Header row styling
         ('BACKGROUND', (0,0), (-1,0), colors.grey),
@@ -77,22 +79,21 @@ def convert_dataframe_to_pdf(df, filename):
     # Color coding for MoM Change column
     if 'MoM Change' in columns_to_include:
         mom_change_index = columns_to_include.index('MoM Change')
-        
-        # Add conditional coloring for MoM Change
         for row_num in range(1, len(data)):
             try:
                 # Skip remarks rows
                 if len(data[row_num]) == len(columns_to_include):
                     mom_change_value = float(data[row_num][mom_change_index])
+                    
                     if mom_change_value < 0:
-                        # Light red for negative
-                        table_style.append(('BACKGROUND', (mom_change_index, row_num), (mom_change_index, row_num), colors.pink))
+                        table_style.append(('BACKGROUND', (mom_change_index, row_num), 
+                                            (mom_change_index, row_num), colors.pink))
                     elif mom_change_value > 0:
-                        # Light green for positive
-                        table_style.append(('BACKGROUND', (mom_change_index, row_num), (mom_change_index, row_num), colors.lightgreen))
+                        table_style.append(('BACKGROUND', (mom_change_index, row_num), 
+                                            (mom_change_index, row_num), colors.lightgreen))
                     else:
-                        # Light gray for zero
-                        table_style.append(('BACKGROUND', (mom_change_index, row_num), (mom_change_index, row_num), colors.lightgrey))
+                        table_style.append(('BACKGROUND', (mom_change_index, row_num), 
+                                            (mom_change_index, row_num), colors.lightgrey))
             except (ValueError, TypeError):
                 # If conversion fails, use default styling
                 pass
@@ -106,7 +107,7 @@ def convert_dataframe_to_pdf(df, filename):
     # Write PDF
     doc.build(content)
     
-    # Get PDF bytes
+    # Reset buffer position
     buffer.seek(0)
     return buffer
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
