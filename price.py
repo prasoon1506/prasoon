@@ -10,10 +10,13 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
-
 def convert_dataframe_to_pdf(df, filename):
     """
-    Convert DataFrame to PDF with headers on each page
+    Convert DataFrame to PDF with enhanced formatting
+    - Headers on each page
+    - Exclude Remarks column
+    - Color-coded MoM Change column
+    - Separate remarks section
     """
     # Create a buffer
     buffer = io.BytesIO()
@@ -24,30 +27,71 @@ def convert_dataframe_to_pdf(df, filename):
     # Prepare styles
     styles = getSampleStyleSheet()
     title_style = styles['Heading1']
+    remarks_style = styles['BodyText']
+    remarks_header_style = styles['Heading3']
     
-    # Prepare data for PDF
-    data = [df.columns.tolist()]  # Header row
+    # Prepare data for PDF (exclude Remarks column)
+    display_columns = [col for col in df.columns if col not in ['Remarks']]
+    data = [display_columns]  # Header row
+    
+    # Prepare color mapping for MoM Change
+    def get_mom_change_color(value):
+        if pd.isna(value):
+            return colors.lightgrey
+        elif value > 0:
+            return colors.lightgreen
+        elif value < 0:
+            return colors.lightcoral
+        else:
+            return colors.lightgrey
+    
+    # Prepare data rows
     for _, row in df.iterrows():
-        data.append([str(val) for val in row.tolist()])
+        row_data = [str(row[col]) for col in display_columns]
+        data.append(row_data)
     
     # Create table
-    table = Table(data)
+    table = Table(data, repeatRows=1)
     
     # Style the table
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.grey),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+    table_style = [
+        ('BACKGROUND', (0,0), (-1,0), colors.grey),  # Header background
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),  # Header text color
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 12),
         ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('BACKGROUND', (0,1), (-1,-1), colors.beige),
         ('GRID', (0,0), (-1,-1), 1, colors.black)
-    ]))
+    ]
+    
+    # Add color coding for MoM Change column
+    mom_change_index = display_columns.index('MoM Change') if 'MoM Change' in display_columns else -1
+    if mom_change_index != -1:
+        for row_num in range(1, len(data)):
+            value = float(data[row_num][mom_change_index]) if data[row_num][mom_change_index] != 'nan' else 0
+            color = get_mom_change_color(value)
+            table_style.append(('BACKGROUND', (mom_change_index, row_num), (mom_change_index, row_num), color))
+    
+    # Set the table style
+    table.setStyle(TableStyle(table_style))
     
     # Prepare PDF content
-    content = []
-    content.append(table)
+    content = [table]
+    
+    # Add remarks if available
+    remarks_added = False
+    for _, row in df.iterrows():
+        # Check if remarks exist for this row
+        if pd.notna(row.get('Remarks', '')):
+            # Add date and remarks
+            remarks_added = True
+            date_text = Paragraph(f"<b>Remarks for {row['Date']}:</b>", remarks_header_style)
+            remarks_text = Paragraph(f"<font backcolor='yellow'>{row['Remarks']}</font>", remarks_style)
+            content.extend([
+                date_text, 
+                remarks_text,
+                PageBreak()
+            ])
     
     # Write PDF
     doc.build(content)
@@ -55,7 +99,6 @@ def convert_dataframe_to_pdf(df, filename):
     # Get PDF bytes
     buffer.seek(0)
     return buffer
-
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     """
     Save processed dataframe with options for start date and format
