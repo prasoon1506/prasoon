@@ -470,7 +470,7 @@ def main():
                     # Display Remarks
                 st.markdown("### Remarks")
                 remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
-                    
+                remarks_df = remarks_df.sort_values('Date', ascending=False)
                 if not remarks_df.empty:
                         # Create a styled container for remarks
                         for _, row in remarks_df.iterrows():
