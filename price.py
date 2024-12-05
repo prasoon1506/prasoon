@@ -346,7 +346,7 @@ def main():
                                  start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
                                 else:
                                     start_date = None
-                                    download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
+                                download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
                                     format_map = {'Excel (.xlsx)': 'xlsx','PDF (.pdf)': 'pdf'}
                                     selected_format = format_map[download_format]
                                     output = save_processed_dataframe(df, start_date, selected_format)
