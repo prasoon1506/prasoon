@@ -449,7 +449,7 @@ def main():
                 st.plotly_chart(fig, use_container_width=True)
                 graph_download_format = st.selectbox("Download Graph as", ['PNG', 'PDF'])
                     
-                    if st.button("Download Graph"):
+                if st.button("Download Graph"):
                         if graph_download_format == 'PNG':
                             img_bytes = pio.to_image(fig, format='png')
                             st.download_button(
@@ -468,10 +468,10 @@ def main():
                             )
                     
                     # Display Remarks
-                    st.markdown("### Remarks")
-                    remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
+                st.markdown("### Remarks")
+                remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
                     
-                    if not remarks_df.empty:
+                if not remarks_df.empty:
                         # Create a styled container for remarks
                         for _, row in remarks_df.iterrows():
                             st.markdown(f"""
@@ -484,7 +484,7 @@ def main():
                                 {row['Remarks']}
                             </div>
                             """, unsafe_allow_html=True)
-                    else:
+                else:
                         st.info("No remarks found for this region.")
             # Global Download Section
             st.markdown("## 📥 Download Options")
