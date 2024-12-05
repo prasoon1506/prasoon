@@ -249,13 +249,12 @@ def main():
             "Does this file require initial editing?", 
             ["No", "Yes"]
         )
-    try:
-            df = process_excel_file(uploaded_file, requires_editing == "Yes")
+        df = process_excel_file(uploaded_file, requires_editing == "Yes")
             
             # Create two columns
-            col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-            with col1:
+        with col1:
                 st.subheader("Data Entry")
                 # Ask if price has changed for any region
                 price_changed = st.radio("Do you want to add new data?", ["No", "Yes"])
