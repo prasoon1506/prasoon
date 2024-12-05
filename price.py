@@ -182,10 +182,37 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     # Prepare the downloaded file
     output.seek(0)
     return output
+def parse_date(date_str):
+    """
+    Flexible date parsing function to handle multiple date formats
+    """
+    try:
+        # Try multiple common formats
+        date_formats = [
+            '%d-%b %Y',    # 31-Mar 2024
+            '%d-%b-%Y',    # 31-Mar-2024
+            '%d-%B %Y',    # 31-March 2024
+            '%Y-%m-%d',    # 2024-03-31
+            '%m/%d/%Y',    # 03/31/2024
+            '%d/%m/%Y',    # 31/03/2024
+        ]
+        
+        for fmt in date_formats:
+            try:
+                return pd.to_datetime(date_str, format=fmt)
+            except ValueError:
+                continue
+        
+        # If no format matches, try parse with mixed format
+        return pd.to_datetime(date_str, format='mixed', dayfirst=True)
+    
+    except Exception as e:
+        st.warning(f"Could not parse date: {date_str}. Error: {e}")
+        return pd.NaT
 
 def process_excel_file(uploaded_file, requires_editing):
     """
-    Process the uploaded Excel file with advanced formatting
+    Process the uploaded Excel file with advanced formatting and flexible date parsing
     """
     # Suppress warnings
     warnings.simplefilter("ignore")
@@ -195,6 +222,9 @@ def process_excel_file(uploaded_file, requires_editing):
 
     # If editing is not required, return the original dataframe
     if not requires_editing:
+        # Ensure dates are parsed correctly
+        if 'Date' in df.columns:
+            df['Date'] = df['Date'].apply(parse_date)
         return df
 
     # Editing process starts here
@@ -209,9 +239,9 @@ def process_excel_file(uploaded_file, requires_editing):
     # Clean up dataframe
     df = df[~df.iloc[:, 1].str.contains('Date', na=False, case=False)]
 
-    # Convert datetime
-    datetime_series = pd.to_datetime(df.iloc[:, 1])  
-    df.iloc[:, 1] = datetime_series.dt.strftime('%d-%b %Y')  
+    # Convert datetime with flexible parsing
+    df.iloc[:, 1] = df.iloc[:, 1].apply(parse_date)
+    df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')  
 
     # Remove null columns
     df = df.loc[:, df.columns.notnull()] 
@@ -358,7 +388,7 @@ def main():
                             # Prepare new row
                             new_row = {
                                 'Region(District)': selected_region,
-                                'Date': date_input,
+                                'Date': parse_date(date_input).strftime('%d-%b %Y'),
                                 'Inv.': inv_input,
                                 'RD': rd_input,
                                 'STS': sts_input,
