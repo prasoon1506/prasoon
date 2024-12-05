@@ -1,0 +1,249 @@
+import streamlit as st
+import pandas as pd
+import io
+import base64
+import warnings
+
+def process_excel_file(uploaded_file):
+    """
+    Process the uploaded Excel file with advanced formatting
+    """
+    # Suppress warnings
+    warnings.simplefilter("ignore")
+
+    # Read the Excel file
+    df = pd.read_excel(uploaded_file)
+    df = df.iloc[1:] 
+    df = df.iloc[:, 1:]
+
+    # Set headers
+    new_header = df.iloc[0]
+    df = df[1:]
+    df.columns = new_header
+
+    # Clean up dataframe
+    mask = df.iloc[:, 1].str.contains('Date', na=False)  
+    df = df[~mask]
+
+    # Convert datetime
+    datetime_series = pd.to_datetime(df.iloc[:, 1])  
+    df.iloc[:, 1] = datetime_series.dt.strftime('%d-%b %Y')  
+
+    # Remove null columns
+    df = df.loc[:, df.columns.notnull()] 
+
+    # Remove specific row
+    df = df[df.iloc[:, 0] != "JKLC Price Tracker Mar'24 - till 03-12-24"]
+
+    # Fill missing first column values
+    mask = df.iloc[:, 0].notna()
+    current_value = None
+    for i in range(len(df)):     
+        if mask.iloc[i]:         
+            current_value = df.iloc[i, 0]     
+        else:         
+            if current_value is not None:             
+                df.iloc[i, 0] = current_value 
+
+    # Rename first column
+    df = df.rename(columns={df.columns[0]: 'Region(District)'})
+    
+    return df
+
+def save_processed_dataframe(df):
+    """
+    Save processed dataframe to Excel with formatting
+    """
+    # Create a Pandas Excel writer using XlsxWriter as the engine
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        # Write the dataframe to the Excel file
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+
+        # Get the xlsxwriter workbook and worksheet objects
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
+
+        # Professional color palette
+        dark_blue = '#2C3E50'
+        white = '#FFFFFF'
+        light_gray = '#F2F2F2'
+
+        # Header format
+        format_header = workbook.add_format({
+            'bold': True, 
+            'font_size': 14, 
+            'bg_color': dark_blue,  
+            'font_color': white,
+            'align': 'center',
+            'valign': 'vcenter',
+            'border': 1,
+            'border_color': '#000000'
+        })
+
+        # General format
+        format_general = workbook.add_format({
+            'font_size': 12,
+            'valign': 'vcenter',
+            'align': 'center'
+        })
+
+        # Alternating row color format
+        format_alternating = workbook.add_format({
+            'font_size': 12,
+            'bg_color': light_gray,
+            'valign': 'vcenter',
+            'align': 'center'
+        })
+
+        # Apply header format
+        worksheet.set_row(0, 30, format_header)
+
+        # Apply alternating row colors to data rows
+        for row_num in range(1, len(df) + 1):
+            if row_num % 2 == 0:
+                worksheet.set_row(row_num, None, format_alternating)
+            else:
+                worksheet.set_row(row_num, None, format_general)
+
+        # Autofit columns
+        for col_num, col_name in enumerate(df.columns):
+            # Calculate max width of column content
+            max_len = max(
+                df[col_name].astype(str).map(len).max(),
+                len(str(col_name))
+            )
+            # Set column width with a little padding
+            worksheet.set_column(col_num, col_num, max_len + 2, format_general)
+
+        # Conditional formatting for 'MoM Change' column
+        mom_change_col_index = df.columns.get_loc('MoM Change')
+
+        # Formats for conditional formatting
+        format_negative = workbook.add_format({
+            'bg_color': '#FFC7CE',
+            'font_size': 12,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        format_zero = workbook.add_format({
+            'bg_color': '#D9D9D9',
+            'font_size': 12,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+        format_positive = workbook.add_format({
+            'bg_color': '#C6EFCE',
+            'font_size': 12,
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+
+        # Apply conditional formatting
+        worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+            'type': 'cell', 
+            'criteria': '<', 
+            'value': 0, 
+            'format': format_negative
+        })
+        worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+            'type': 'cell', 
+            'criteria': '=', 
+            'value': 0, 
+            'format': format_zero
+        })
+        worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+            'type': 'cell', 
+            'criteria': '>', 
+            'value': 0, 
+            'format': format_positive
+        })
+
+        # Close the writer
+        writer.close()
+
+    # Prepare the downloaded file
+    output.seek(0)
+    return output
+
+def main():
+    st.title("Price Tracker Data Entry App")
+
+    # File Uploader
+    uploaded_file = st.file_uploader("Please upload the Price Tracker file", type=['xlsx'])
+
+    if uploaded_file is not None:
+        st.success("Thank You!")
+        
+        # Process the uploaded file
+        try:
+            df = process_excel_file(uploaded_file)
+            
+            # Ask if price has changed for any region
+            price_changed = st.radio("Has price changed for any Region(District)?", ["No", "Yes"])
+            
+            if price_changed == "Yes":
+                # Get unique regions
+                unique_regions = df['Region(District)'].unique()
+                
+                # Region selection
+                selected_region = st.selectbox("Select Region(District)", unique_regions)
+                
+                # Filter dataframe for selected region
+                region_df = df[df['Region(District)'] == selected_region]
+                
+                # Date input
+                date_input = st.text_input("Enter Date (format: DD-Mon YYYY, e.g., 01-Jan 2024)")
+                
+                # Input for other columns
+                inv_input = st.number_input("Enter Inv. value", value=0.0, format="%.2f")
+                rd_input = st.number_input("Enter RD value", value=0.0, format="%.2f")
+                sts_input = st.number_input("Enter STS value", value=0.0, format="%.2f")
+                reglr_input = st.number_input("Enter Reglr value", value=0.0, format="%.2f")
+                
+                # Calculate Net
+                net_input = inv_input - rd_input - sts_input - reglr_input
+                st.write(f"Calculated Net value: {net_input}")
+                
+                # Calculate MoM Change
+                last_net_value = region_df['Net'].iloc[-1] if 'Net' in region_df.columns else 0
+                mom_change = net_input - last_net_value
+                st.write(f"Calculated MoM Change: {mom_change}")
+                
+                # Remarks input
+                remarks_input = st.text_area("Enter Remarks (Optional)")
+                
+                # Prepare new row
+                new_row = {
+                    'Region(District)': selected_region,
+                    'Date': date_input,
+                    'Inv.': inv_input,
+                    'RD': rd_input,
+                    'STS': sts_input,
+                    'Reglr': reglr_input,
+                    'Net': net_input,
+                    'MoM Change': mom_change,
+                    'Remarks': remarks_input
+                }
+                
+                # Button to add new row
+                if st.button("Add New Row"):
+                    # Append new row to dataframe
+                    df = df.append(new_row, ignore_index=True)
+                    
+                    # Save processed dataframe
+                    output = save_processed_dataframe(df)
+                    
+                    # Create download button
+                    st.download_button(
+                        label="Download Processed Excel File",
+                        data=output,
+                        file_name='processed_price_tracker.xlsx',
+                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    )
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
