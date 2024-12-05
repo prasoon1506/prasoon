@@ -12,7 +12,7 @@ from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 def convert_dataframe_to_pdf(df, filename):
     """
-    Convert DataFrame to PDF with full-width remarks rows
+    Convert DataFrame to PDF with full-width remarks rows and optimized layout.
     """
     # Create a buffer
     buffer = io.BytesIO()
@@ -43,22 +43,34 @@ def convert_dataframe_to_pdf(df, filename):
         # Check if remarks exist for this row
         if pd.notna(row['Remarks']):
             # Create a full-width remarks row
-            remarks_data = ['Remarks: ' + str(row['Remarks'])] + [''] * (len(columns_to_include) - 1)
+            remarks_data = ['Remarks: ' + str(row['Remarks'])]
             data.append(remarks_data)
     
+    # Calculate column widths based on content
+    col_widths = []
+    for col in columns_to_include:
+        max_width = max(len(str(data[i][j])) for i in range(len(data)) for j, c in enumerate(columns_to_include) if c == col)
+        col_widths.append(max_width * 0.8 * inch)
+    
     # Create table
-    table = Table(data, repeatRows=1, colWidths=[None] * len(columns_to_include))
+    table = Table(data, repeatRows=1, colWidths=col_widths)
     
     # Style the table
     table_style = [
         # Header row styling
         ('BACKGROUND', (0,0), (-1,0), colors.grey),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('FONTSIZE', (0,0), (-1,0), 12),
         ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        
+        # Remarks row styling
+        ('BACKGROUND', (0,-1), (-1,-1), colors.yellow),
+        ('ALIGN', (0,-1), (-1,-1), 'LEFT'),
+        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Oblique'),
+        ('SPAN', (0,-1), (-1,-1))
     ]
     
     # Color coding for MoM Change column
@@ -83,16 +95,6 @@ def convert_dataframe_to_pdf(df, filename):
             except (ValueError, TypeError):
                 # If conversion fails, use default styling
                 pass
-    
-    # Styling for remarks rows
-    for row_num in range(1, len(data)):
-        if row_num < len(data):
-            if 'Remarks:' in str(data[row_num][0]):
-                # Yellow background for remarks rows
-                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), colors.yellow))
-                table_style.append(('FONTNAME', (0, row_num), (-1, row_num), 'Helvetica-Oblique'))
-                # Merge cells for remarks row to span full width
-                table_style.append(('SPAN', (0, row_num), (-1, row_num)))
     
     # Apply table style
     table.setStyle(TableStyle(table_style))
