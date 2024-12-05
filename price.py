@@ -324,34 +324,36 @@ def main():
                                 data_entries.append(new_row)
                                 
                                 st.markdown("---")
-                            
-                            # Button to add new rows
-                            if st.button("Add New Rows"):
-                                # Convert data entries to DataFrame
-                                new_rows_df = pd.DataFrame(data_entries)
-                                
-                                # Append new rows to existing dataframe
-                                df = pd.concat([df, new_rows_df], ignore_index=True)
-                                
-                                # Save processed dataframe
-                                output = save_processed_dataframe(df)
-                                download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month"])
+                            # Replace the existing download section with this code
+                                if st.button("Add New Rows"):
+                                      region_rows = df[df['Region(District)'] == selected_region]
+                                      last_region_index = region_rows.index[-1] + 1
+                                      df_before = df.iloc[:last_region_index]
+                                      df_after = df.iloc[last_region_index:]
+                                      df = pd.concat([df_before, pd.DataFrame(data_entries), df_after], ignore_index=True)
+                                      st.subheader("Download Processed File")
+                                      download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month"])
+                                      start_date = None
+                                      if download_options == "Specific Month":
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                           month_input = st.selectbox("Select Month", ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])
+                                        with col2:
+                                           year_input = st.number_input("Select Year", min_value=2000, max_value=2030, value=2024)
+                                        start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
 
-                                if download_options == "Specific Month":
-                                  col1, col2 = st.columns(2)
-                                  with col1:
-                                    month_input = st.selectbox("Select Month", ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'])
-                                  with col2:
-                                    year_input = st.number_input("Select Year", min_value=2000, max_value=2030, value=2024)
-                                  start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
-                                else:
-                                    start_date = None
-                                download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
-                                format_map = {'Excel (.xlsx)': 'xlsx','PDF (.pdf)': 'pdf'}
-                                selected_format = format_map[download_format]
-                                output = save_processed_dataframe(df, start_date, selected_format)
-                                st.download_button(label=f"Download Processed File ({download_format})",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
-
+                                        download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
+                                        format_map = {'Excel (.xlsx)': 'xlsx', 'PDF (.pdf)': 'pdf'}
+                                        selected_format = format_map[download_format]
+    
+                                        output = save_processed_dataframe(df, start_date, selected_format)
+    
+                                        st.download_button(
+        label=f"Download Processed File ({download_format})",
+        data=output,
+        file_name=f'processed_price_tracker.{selected_format}',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf'
+    )
             with col2:
                 st.subheader("Region Analysis")
                 
