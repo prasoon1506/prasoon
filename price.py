@@ -214,22 +214,22 @@ def main():
                 remarks_input = st.text_area("Enter Remarks (Optional)")
                 
                 # Prepare new row
-                new_row = {
-                    'Region(District)': selected_region,
-                    'Date': date_input,
-                    'Inv.': inv_input,
-                    'RD': rd_input,
-                    'STS': sts_input,
-                    'Reglr': reglr_input,
-                    'Net': net_input,
-                    'MoM Change': mom_change,
-                    'Remarks': remarks_input
-                }
+                new_row = pd.DataFrame({
+                    'Region(District)': [selected_region],
+                    'Date': [date_input],
+                    'Inv.': [inv_input],
+                    'RD': [rd_input],
+                    'STS': [sts_input],
+                    'Reglr': [reglr_input],
+                    'Net': [net_input],
+                    'MoM Change': [mom_change],
+                    'Remarks': [remarks_input]
+                })
                 
                 # Button to add new row
                 if st.button("Add New Row"):
-                    # Append new row to dataframe
-                    df = df.append(new_row, ignore_index=True)
+                    # Concatenate new row to dataframe
+                    df = pd.concat([df, new_row], ignore_index=True)
                     
                     # Save processed dataframe
                     output = save_processed_dataframe(df)
