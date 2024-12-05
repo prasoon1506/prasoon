@@ -177,8 +177,8 @@ def save_processed_dataframe(df):
     return output
 
 def main():
-    st.title("Price Tracker & Analysis")
-
+    st.title("Price Tracker")
+    st.set_page_config(page_title="Price Tracker", layout="wide")
     # File Uploader
     uploaded_file = st.file_uploader("Please upload the Price Tracker file", type=['xlsx'])
 
