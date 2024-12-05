@@ -402,7 +402,7 @@ def main():
                 
                 # Create interactive graph
                 fig = go.Figure()
-                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
+                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b-%Y')
                 region_analysis_df = region_analysis_df.sort_values('Date')
                 
                 fig.add_trace(go.Scatter(
