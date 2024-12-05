@@ -249,7 +249,7 @@ def main():
             "Does this file require initial editing?", 
             ["No", "Yes"]
         )
-            # Process the file
+    try:
             df = process_excel_file(uploaded_file, requires_editing == "Yes")
             
             # Create two columns
