@@ -22,4 +22,19 @@ twilio
 kaleido
 streamlit_cookies_manager
 xlsxwriter
-openai == 0.28
+pandas
+xgboost
+tqdm
+ipywidgets
+openpyxl
+statsmodels
+reportlab
+xlrd
+kaleido
+twilio
+pandas
+lightgbm
+catboost
+twilio
+kaleido
+
