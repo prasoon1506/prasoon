@@ -400,8 +400,14 @@ def main():
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
                             new_rows_df = pd.DataFrame(data_entries)
-                            df = pd.concat([df, new_rows_df], ignore_index=True)
-    
+                            updated_df = pd.DataFrame(columns=df.columns)
+                            grouped = df.groupby('Region(District)')
+                            for region in df['Region(District)'].unique():
+                                    region_rows = grouped.get_group(region)
+                                    new_region_rows = new_rows_df[new_rows_df['Region(District)'] == region]
+                                    combined_region_rows = pd.concat([region_rows, new_region_rows], ignore_index=True)
+                                    updated_df = pd.concat([updated_df, combined_region_rows], ignore_index=True)
+                            df = updated_df
                             st.success(f"{len(data_entries)} new rows added successfully!")
 
             with col2:
