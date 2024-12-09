@@ -59,6 +59,7 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
 
     if 'processed_dataframe' in st.session_state:
         df = st.session_state['processed_dataframe']
+    df_to_save = df.copy()
     # Ensure Date column is datetime
     if 'Date' in df_to_save.columns:
         df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
