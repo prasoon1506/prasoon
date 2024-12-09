@@ -293,7 +293,7 @@ def main():
                     st.metric("Total Price Changes", len(region_analysis_df))
                 graph_type = st.selectbox("Select Graph Type", ['Net', 'Inv.', 'RD', 'STS', 'Reglr'])
                 fig = go.Figure()
-                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b-%Y')
+                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
                 region_analysis_df = region_analysis_df.sort_values('Date')
                 fig.add_trace(go.Scatter(x=region_analysis_df['Date'], y=region_analysis_df[graph_type], mode='lines+markers+text',text=region_analysis_df[graph_type].round(2),textposition='top center',name=f'{graph_type} Value'))
                 
