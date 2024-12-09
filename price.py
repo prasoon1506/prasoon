@@ -411,7 +411,7 @@ def main():
                              new_row_df = pd.DataFrame([new_row])
                              for col in df.columns:
                               if col not in new_row_df.columns:
-                              new_row_df[col] = None
+                               new_row_df[col] = None
                              new_row_df = new_row_df.reindex(columns=df.columns)
                              updated_df = pd.concat([updated_df.iloc[:last_region_index+1], new_row_df, updated_df.iloc[last_region_index+1:]]).reset_index(drop=True)
                           else:
