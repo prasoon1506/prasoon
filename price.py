@@ -399,10 +399,9 @@ def main():
                         
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
-                            # Append new entries to dataframe
-                            for entry in data_entries:
-                                df = df.append(entry, ignore_index=True)
-                            
+                            new_rows_df = pd.DataFrame(data_entries)
+                            df = pd.concat([df, new_rows_df], ignore_index=True)
+    
                             st.success(f"{len(data_entries)} new rows added successfully!")
 
             with col2:
