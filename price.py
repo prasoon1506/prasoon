@@ -96,17 +96,33 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     output.seek(0)
     return output
 def parse_date(date_str):
+    """
+    Flexible date parsing function to handle multiple date formats
+    """
     try:
-        date_formats = ['%d-%b %Y','%d-%b-%Y','%d-%B %Y','%Y-%m-%d','%m/%d/%Y','%d/%m/%Y',]
+        # Try multiple common formats
+        date_formats = [
+            '%d-%b %Y',    # 31-Mar 2024
+            '%d-%b-%Y',    # 31-Mar-2024
+            '%d-%B %Y',    # 31-March 2024
+            '%Y-%m-%d',    # 2024-03-31
+            '%m/%d/%Y',    # 03/31/2024
+            '%d/%m/%Y',    # 31/03/2024
+        ]
+        
         for fmt in date_formats:
             try:
                 return pd.to_datetime(date_str, format=fmt)
             except ValueError:
                 continue
+        
+        # If no format matches, try parse with mixed format
         return pd.to_datetime(date_str, format='mixed', dayfirst=True)
+    
     except Exception as e:
         st.warning(f"Could not parse date: {date_str}. Error: {e}")
         return pd.NaT
+
 def process_excel_file(uploaded_file, requires_editing):
     """
     Process the uploaded Excel file with advanced formatting and flexible date parsing
