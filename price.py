@@ -401,6 +401,30 @@ def main():
                             st.markdown("---")
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
+                         new_rows_df = pd.DataFrame(data_entries)
+                         updated_df = df.copy()
+                         for new_row in data_entries:
+                          region = new_row['Region(District)']
+                          region_rows = updated_df[updated_df['Region(District)'] == region]
+                          if not region_rows.empty:
+                             last_region_index = region_rows.index[-1]
+                             new_row_df = pd.DataFrame([new_row])
+                             for col in df.columns:
+                              if col not in new_row_df.columns:
+                              new_row_df[col] = None
+                             new_row_df = new_row_df.reindex(columns=df.columns)
+                             updated_df = pd.concat([updated_df.iloc[:last_region_index+1], new_row_df, updated_df.iloc[last_region_index+1:]]).reset_index(drop=True)
+                          else:
+                             new_row_df = pd.DataFrame([new_row])
+                             for col in df.columns:
+                               if col not in new_row_df.columns:
+                                 new_row_df[col] = None
+                             new_row_df = new_row_df.reindex(columns=df.columns)
+                             updated_df = pd.concat([updated_df, new_row_df]).reset_index(drop=True)
+                        df = updated_df
+                        st.session_state['processed_dataframe'] = df
+                        st.success(f"{len(data_entries)} new rows added successfully!")
+                        if st.button("Add New Rows to Dataframe"):
                            new_rows_df = pd.DataFrame(data_entries)
                            for col in df.columns:
                              if col not in new_rows_df.columns:
