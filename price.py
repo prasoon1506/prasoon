@@ -55,16 +55,21 @@ def convert_dataframe_to_pdf(df, filename):
     # Get PDF bytes
     buffer.seek(0)
     return buffer
-
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     """
     Save processed dataframe with options for start date and format
     """
+    # Create a copy of the dataframe to avoid modifying the original
+    df_to_save = df.copy()
+    
+    # Ensure 'Date' column is datetime
+    if 'Date' in df_to_save.columns:
+        df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
+    
     # Filter dataframe by start date if specified
     if start_date:
-        df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
-        df = df[df['Date'] >= start_date]
-        df['Date'] = df['Date'].dt.strftime('%d-%b %Y')
+        df_to_save = df_to_save[df_to_save['Date'] >= start_date]
+        df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
     
     # Create output based on format
     output = io.BytesIO()
@@ -72,9 +77,7 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     if download_format == 'xlsx':
         # Excel saving logic
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Sheet1', index=False)
-            
-            # Get the xlsxwriter workbook and worksheet objects
+            df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
 
