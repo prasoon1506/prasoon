@@ -176,59 +176,6 @@ def process_excel_file(uploaded_file, requires_editing):
     df = df.reset_index(drop=True)
     
     return df
-"""def process_excel_file(uploaded_file, requires_editing):
-    """
-    Process the uploaded Excel file with advanced formatting
-    """
-    # Suppress warnings
-    warnings.simplefilter("ignore")
-
-    # Read the Excel file
-    df = pd.read_excel(uploaded_file)
-
-    # If editing is not required, return the original dataframe
-    if not requires_editing:
-        return df
-
-    # Editing process starts here
-    df = df.iloc[1:] 
-    df = df.iloc[:, 1:]
-
-    # Set headers
-    new_header = df.iloc[0]
-    df = df[1:]
-    df.columns = new_header
-
-    # Clean up dataframe
-    df = df[~df.iloc[:, 1].str.contains('Date', na=False, case=False)]
-
-    # Convert datetime
-    datetime_series = pd.to_datetime(df.iloc[:, 1])  
-    df.iloc[:, 1] = datetime_series.dt.strftime('%d-%b %Y')  
-
-    # Remove null columns
-    df = df.loc[:, df.columns.notnull()] 
-
-    # Remove specific row
-    df = df[df.iloc[:, 0] != "JKLC Price Tracker Mar'24 - till 03-12-24"]
-
-    # Fill missing first column values
-    mask = df.iloc[:, 0].notna()
-    current_value = None
-    for i in range(len(df)):     
-        if mask.iloc[i]:         
-            current_value = df.iloc[i, 0]     
-        else:         
-            if current_value is not None:             
-                df.iloc[i, 0] = current_value 
-
-    # Rename first column
-    df = df.rename(columns={df.columns[0]: 'Region(District)'})
-    
-    # Reset index
-    df = df.reset_index(drop=True)
-    
-    return df"""
 def main():
     st.set_page_config(page_title="Price Tracker", layout="wide")
     st.title("📊 Price Tracker Analysis Tool")
