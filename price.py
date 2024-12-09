@@ -477,7 +477,7 @@ def main():
                     x=region_analysis_df['Date'], 
                     y=region_analysis_df[graph_type], 
                     mode='lines+markers+text',
-                    text=region_analysis_df[graph_type].round(2),
+                    text=region_analysis_df[graph_type].round(0),
                     textposition='top center',
                     name=f'{graph_type} Value'
                 ))
