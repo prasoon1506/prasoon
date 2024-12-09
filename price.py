@@ -110,20 +110,27 @@ def parse_date(date_str):
 def process_excel_file(uploaded_file, requires_editing):
     warnings.simplefilter("ignore")
     df = pd.read_excel(uploaded_file)
+    
     if not requires_editing:
         if 'Date' in df.columns:
             df['Date'] = df['Date'].apply(parse_date)
         return df
+    
     df = df.iloc[1:] 
     df = df.iloc[:, 1:]
     new_header = df.iloc[0]
     df = df[1:]
     df.columns = new_header
+    
     df = df[~df.iloc[:, 1].str.contains('Date', na=False, case=False)]
-    df.iloc[:, 1] = df.iloc[:, 1].apply(parse_date)
-    df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')  
+    
+    # Convert the date column to datetime and then format
+    df.iloc[:, 1] = pd.to_datetime(df.iloc[:, 1], errors='coerce')
+    df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')
+    
     df = df.loc[:, df.columns.notnull()] 
     df = df[df.iloc[:, 0] != "JKLC Price Tracker Mar'24 - till 03-12-24"]
+    
     mask = df.iloc[:, 0].notna()
     current_value = None
     for i in range(len(df)):     
@@ -132,6 +139,7 @@ def process_excel_file(uploaded_file, requires_editing):
         else:         
             if current_value is not None:             
                 df.iloc[i, 0] = current_value 
+    
     df = df.rename(columns={df.columns[0]: 'Region(District)'})
     df = df.reset_index(drop=True)
     return df
