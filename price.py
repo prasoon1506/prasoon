@@ -123,7 +123,7 @@ def parse_date(date_str):
         st.warning(f"Could not parse date: {date_str}. Error: {e}")
         return pd.NaT
 
-def process_excel_file1(uploaded_file, requires_editing):
+def process_excel_file(uploaded_file, requires_editing):
     # Suppress warnings
     warnings.simplefilter("ignore")
 
@@ -176,7 +176,7 @@ def process_excel_file1(uploaded_file, requires_editing):
     df = df.reset_index(drop=True)
     
     return df
-def process_excel_file(uploaded_file, requires_editing):
+"""def process_excel_file(uploaded_file, requires_editing):
     """
     Process the uploaded Excel file with advanced formatting
     """
@@ -228,7 +228,7 @@ def process_excel_file(uploaded_file, requires_editing):
     # Reset index
     df = df.reset_index(drop=True)
     
-    return df
+    return df"""
 def main():
     st.set_page_config(page_title="Price Tracker", layout="wide")
     st.title("📊 Price Tracker Analysis Tool")
