@@ -55,16 +55,21 @@ def convert_dataframe_to_pdf(df, filename):
     # Get PDF bytes
     buffer.seek(0)
     return buffer
-
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     """
     Save processed dataframe with options for start date and format
     """
-    # Filter dataframe by start date if specified
-    if start_date:
-        df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
-        df = df[df['Date'] >= start_date]
-        df['Date'] = df['Date'].dt.strftime('%d-%b %Y')
+    # Create a copy of the dataframe to avoid modifying the original
+    df_to_save = df.copy()
+    
+    # Ensure Date column is datetime
+    if 'Date' in df_to_save.columns:
+        df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
+        
+        # Filter by start date if specified
+        if start_date:
+            df_to_save = df_to_save[df_to_save['Date'] >= start_date]
+            df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
     
     # Create output based on format
     output = io.BytesIO()
@@ -72,7 +77,7 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     if download_format == 'xlsx':
         # Excel saving logic
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Sheet1', index=False)
+            df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
             
             # Get the xlsxwriter workbook and worksheet objects
             workbook = writer.book
@@ -114,25 +119,25 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
             worksheet.set_row(0, 30, format_header)
 
             # Apply alternating row colors to data rows
-            for row_num in range(1, len(df) + 1):
+            for row_num in range(1, len(df_to_save) + 1):
                 if row_num % 2 == 0:
                     worksheet.set_row(row_num, None, format_alternating)
                 else:
                     worksheet.set_row(row_num, None, format_general)
 
             # Autofit columns
-            for col_num, col_name in enumerate(df.columns):
+            for col_num, col_name in enumerate(df_to_save.columns):
                 # Calculate max width of column content
                 max_len = max(
-                    df[col_name].astype(str).map(len).max(),
+                    df_to_save[col_name].astype(str).map(len).max(),
                     len(str(col_name))
                 )
                 # Set column width with a little padding
                 worksheet.set_column(col_num, col_num, max_len + 2, format_general)
 
             # Conditional formatting for 'MoM Change' column
-            if 'MoM Change' in df.columns:
-                mom_change_col_index = df.columns.get_loc('MoM Change')
+            if 'MoM Change' in df_to_save.columns:
+                mom_change_col_index = df_to_save.columns.get_loc('MoM Change')
 
                 # Formats for conditional formatting
                 format_negative = workbook.add_format({
@@ -155,19 +160,19 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
                 })
 
                 # Apply conditional formatting
-                worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
                     'type': 'cell', 
                     'criteria': '<', 
                     'value': 0, 
                     'format': format_negative
                 })
-                worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
                     'type': 'cell', 
                     'criteria': '=', 
                     'value': 0, 
                     'format': format_zero
                 })
-                worksheet.conditional_format(1, mom_change_col_index, len(df), mom_change_col_index, {
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
                     'type': 'cell', 
                     'criteria': '>', 
                     'value': 0, 
@@ -177,7 +182,7 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
             # Close the writer
             writer.close()
     elif download_format == 'pdf':
-        output = convert_dataframe_to_pdf(df, 'processed_price_tracker.pdf')
+        output = convert_dataframe_to_pdf(df_to_save, 'processed_price_tracker.pdf')
     
     # Prepare the downloaded file
     output.seek(0)
