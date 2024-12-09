@@ -146,7 +146,7 @@ def process_excel_file(uploaded_file, requires_editing):
 
     # Convert datetime with flexible parsing
     df.iloc[:, 1] = df.iloc[:, 1].apply(parse_date)
-    df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')  
+    #df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')  
 
     # Remove null columns
     df = df.loc[:, df.columns.notnull()] 
