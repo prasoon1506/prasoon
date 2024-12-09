@@ -409,6 +409,7 @@ def main():
                                 new_rows_df[col] = None
                            new_rows_df = new_rows_df.reindex(columns=df.columns)
                            df = pd.concat([df, new_rows_df], ignore_index=True)
+                           st.session_state['processed_dataframe'] = df
                            st.success(f"{len(data_entries)} new rows added successfully!")
             with col2:
                 st.subheader("📈 Region Analysis")
