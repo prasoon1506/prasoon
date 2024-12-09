@@ -396,17 +396,15 @@ def main():
                             data_entries.append(new_row)
                             
                             st.markdown("---")
-                        
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
-                            new_rows_df = pd.DataFrame(data_entries)
-                            for col in df.columns:
-                              if col not in new_rows_df.columns:
-                               new_rows_df[col] = None
-                            new_rows_df = new_rows_df.reindex(columns=df.columns)
-                            df = pd.concat([df, new_rows_df], ignore_index=True)
-    
-                            st.success(f"{len(data_entries)} new rows added successfully!")
+                           new_rows_df = pd.DataFrame(data_entries)
+                           for col in df.columns:
+                             if col not in new_rows_df.columns:
+                                new_rows_df[col] = None
+                           new_rows_df = new_rows_df.reindex(columns=df.columns)
+                          df = pd.concat([df, new_rows_df], ignore_index=True)
+                          st.success(f"{len(data_entries)} new rows added successfully!")
             with col2:
                 st.subheader("📈 Region Analysis")
                 
