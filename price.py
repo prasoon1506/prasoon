@@ -399,35 +399,55 @@ def main():
                             data_entries.append(new_row)
                             
                             st.markdown("---")
+                        
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
-                         if not data_entries:
-                          st.warning("No new entries to add.")
-                          return
-                         updated_df = df.copy()
-                         new_rows_df = pd.DataFrame(data_entries)
-                         updated_df = df.copy()
-                         for new_row in data_entries:
-                          region = new_row['Region(District)']
-                          region_rows = updated_df[updated_df['Region(District)'] == region]
-                          if not region_rows.empty:
-                             last_region_index = region_rows.index[-1]
-                             new_row_df = pd.DataFrame([new_row])
-                             for col in df.columns:
-                              if col not in new_row_df.columns:
-                               new_row_df[col] = None
-                             new_row_df = new_row_df.reindex(columns=df.columns)
-                             updated_df = pd.concat([updated_df.iloc[:last_region_index+1], new_row_df, updated_df.iloc[last_region_index+1:]]).reset_index(drop=True)
-                          else:
-                             new_row_df = pd.DataFrame([new_row])
-                             for col in df.columns:
-                               if col not in new_row_df.columns:
-                                 new_row_df[col] = None
-                             new_row_df = new_row_df.reindex(columns=df.columns)
-                             updated_df = pd.concat([updated_df, new_row_df]).reset_index(drop=True)
-                        df = updated_df
-                        st.session_state['processed_dataframe'] = df
-                        st.success(f"{len(data_entries)} new rows added successfully!")
+                            # Ensure data_entries is not empty
+                            if not data_entries:
+                                st.warning("No new entries to add.")
+                                return
+                            
+                            # Prepare a copy of the original dataframe to modify
+                            updated_df = df.copy()
+                            
+                            # Prepare new rows DataFrame with correct columns
+                            new_rows_df = pd.DataFrame(data_entries)
+                            for col in df.columns:
+                                if col not in new_rows_df.columns:
+                                    new_rows_df[col] = None
+                            new_rows_df = new_rows_df.reindex(columns=df.columns)
+                            
+                            # Process each unique region
+                            for region in new_rows_df['Region(District)'].unique():
+                                # Filter new rows for this specific region
+                                region_new_rows = new_rows_df[new_rows_df['Region(District)'] == region]
+                                
+                                # Find indices of existing rows for this region
+                                region_existing_indices = updated_df[updated_df['Region(District)'] == region].index
+                                
+                                if not region_existing_indices.empty:
+                                    # Get the last index for this region
+                                    last_region_index = region_existing_indices[-1]
+                                    
+                                    # Prepare to insert new rows
+                                    before_region = updated_df.iloc[:last_region_index+1]
+                                    after_region = updated_df.iloc[last_region_index+1:]
+                                    
+                                    # Combine dataframes
+                                    updated_df = pd.concat([
+                                        before_region, 
+                                        region_new_rows, 
+                                        after_region
+                                    ]).reset_index(drop=True)
+                                else:
+                                    # If no existing rows, append to the end
+                                    updated_df = pd.concat([updated_df, region_new_rows]).reset_index(drop=True)
+                            
+                            # Update the dataframe
+                            df = updated_df
+                            st.session_state['processed_dataframe'] = df
+                            st.success(f"{len(data_entries)} new rows added successfully!")
+
             with col2:
                 st.subheader("📈 Region Analysis")
                 
@@ -509,6 +529,7 @@ def main():
                             """, unsafe_allow_html=True)
                 else:
                         st.info("No remarks found for this region.")
+            
             # Global Download Section
             st.markdown("## 📥 Download Options")
             
