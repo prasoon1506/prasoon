@@ -432,7 +432,7 @@ def main():
                         
                         st.success(f"{len(data_entries)} new rows added successfully!")
                         # Rerun to refresh the page with updated data
-                        st.experimental_rerun()
+                        st.rerun()
 
         with col2:
             st.subheader("📈 Region Analysis")
