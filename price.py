@@ -102,12 +102,7 @@ def parse_date(date_str):
     try:
         # Try multiple common formats
         date_formats = [
-            '%d-%b %Y',    # 31-Mar 2024
-            '%d-%b-%Y',    # 31-Mar-2024
-            '%d-%B %Y',    # 31-March 2024
-            '%Y-%m-%d',    # 2024-03-31
-            '%m/%d/%Y',    # 03/31/2024
-            '%d/%m/%Y',    # 31/03/2024
+            '%d-%b %Y',    
         ]
         
         for fmt in date_formats:
