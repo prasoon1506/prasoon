@@ -55,21 +55,16 @@ def convert_dataframe_to_pdf(df, filename):
     # Get PDF bytes
     buffer.seek(0)
     return buffer
+
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     """
     Save processed dataframe with options for start date and format
     """
-    # Create a copy of the dataframe to avoid modifying the original
-    df_to_save = df.copy()
-    
-    # Ensure 'Date' column is datetime
-    if 'Date' in df_to_save.columns:
-        df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
-    
     # Filter dataframe by start date if specified
     if start_date:
-        df_to_save = df_to_save[df_to_save['Date'] >= start_date]
-        df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
+        df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
+        df = df[df['Date'] >= start_date]
+        df['Date'] = df['Date'].dt.strftime('%d-%b %Y')
     
     # Create output based on format
     output = io.BytesIO()
@@ -77,7 +72,9 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     if download_format == 'xlsx':
         # Excel saving logic
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
+            df.to_excel(writer, sheet_name='Sheet1', index=False)
+            
+            # Get the xlsxwriter workbook and worksheet objects
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
 
@@ -284,10 +281,6 @@ def main():
     3. Add new data, analyze regions, and download processed files
     """)
     
-    # Initialize session state variables
-    if 'df' not in st.session_state:
-        st.session_state.df = None
-    
     # File Uploader
     uploaded_file = st.file_uploader(
         "Please upload the Price Tracker file", 
@@ -296,263 +289,246 @@ def main():
     )
 
     if uploaded_file is not None:
-        # Process the file only if not already processed
-        if st.session_state.df is None:
-            # Ask if the file requires initial editing
-            requires_editing = st.radio(
-                "Does this file require initial editing?", 
-                ["No", "Yes"],
-                help="Select 'Yes' if the uploaded file needs preprocessing"
-            )
-
-            # Process the file based on editing requirement
-            try:
-                # Process the file
-                st.session_state.df = process_excel_file(uploaded_file, requires_editing == "Yes")
-                
-                # Validate DataFrame
-                required_columns = ['Region(District)', 'Date', 'Inv.', 'RD', 'STS', 'Reglr']
-                missing_columns = [col for col in required_columns if col not in st.session_state.df.columns]
-                
-                if missing_columns:
-                    st.error(f"Missing required columns: {', '.join(missing_columns)}")
-                    st.session_state.df = None
-                    st.stop()
-            
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-                st.exception(e)
-                return
-
-        # Work with the dataframe from session state
-        df = st.session_state.df
-        
-        # Create two columns for layout
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader("🔄 Data Entry")
-            
-            # Price change option
-            price_changed = st.radio("Do you want to add new data?", ["No", "Yes"])
-            
-            if price_changed == "Yes":
-                # Get unique regions
-                unique_regions = df['Region(District)'].unique()
-                
-                if len(unique_regions) == 0:
-                    st.warning("No regions found in the dataframe.")
-                else:
-                    # Allow multiple region selection
-                    selected_regions = st.multiselect("Select Region(s)", unique_regions)
-                    
-                    # Container for data entries
-                    data_entries = []
-                    
-                    for selected_region in selected_regions:
-                        st.markdown(f"### Data Entry for {selected_region}")
-                        
-                        # Region-specific data entry
-                        region_df = df[df['Region(District)'] == selected_region]
-                        from datetime import datetime
-                        date_input = st.text_input(f"Enter Date for {selected_region}", value=datetime.now().strftime("%d-%b %Y"), placeholder="DD-Mon YYYY, e.g., 01-Jan 2024", key=f"date_{selected_region}")
-                        
-                        # Input for financial values
-                        inv_input = st.number_input(
-                            f"Enter Inv. value for {selected_region}", 
-                            value=0.0, 
-                            format="%.2f", 
-                            key=f"inv_{selected_region}"
-                        )
-                        rd_input = st.number_input(
-                            f"Enter RD value for {selected_region}", 
-                            value=0.0, 
-                            format="%.2f", 
-                            key=f"rd_{selected_region}"
-                        )
-                        sts_input = st.number_input(
-                            f"Enter STS value for {selected_region}", 
-                            value=0.0, 
-                            format="%.2f", 
-                            key=f"sts_{selected_region}"
-                        )
-                        reglr_input = st.number_input(
-                            f"Enter Reglr value for {selected_region}", 
-                            value=0.0, 
-                            format="%.2f", 
-                            key=f"reglr_{selected_region}"
-                        )
-                        
-                        # Calculate Net
-                        net_input = inv_input - rd_input - sts_input - reglr_input
-                        st.write(f"Calculated Net value for {selected_region}: {net_input}")
-                        
-                        # Calculate MoM Change
-                        last_net_value = region_df['Net'].iloc[-1] if 'Net' in region_df.columns and not region_df['Net'].empty else 0
-                        mom_change = net_input - last_net_value
-                        st.write(f"Calculated MoM Change for {selected_region}: {mom_change}")
-                        
-                        # Remarks input
-                        remarks_input = st.text_area(
-                            f"Enter Remarks for {selected_region} (Optional)", 
-                            key=f"remarks_{selected_region}"
-                        )
-                        
-                        # Prepare new row
-                        new_row = {
-                            'Region(District)': selected_region,
-                            'Date': parse_date(date_input).strftime('%d-%b %Y'),
-                            'Inv.': inv_input,
-                            'RD': rd_input,
-                            'STS': sts_input,
-                            'Reglr': reglr_input,
-                            'Net': net_input,
-                            'MoM Change': mom_change,
-                            'Remarks': remarks_input
-                        }
-                        
-                        data_entries.append(new_row)
-                        
-                        st.markdown("---")
-                    
-                    # Button to add new rows
-                    if st.button("Add New Rows to Dataframe"):
-                        new_rows_df = pd.DataFrame(data_entries)
-                        
-                        # Ensure all original columns are present
-                        for col in df.columns:
-                            if col not in new_rows_df.columns:
-                                new_rows_df[col] = None
-                        
-                        # Reindex to match original column order
-                        new_rows_df = new_rows_df.reindex(columns=df.columns)
-                        
-                        # Update the session state DataFrame
-                        st.session_state.df = pd.concat([df, new_rows_df], ignore_index=True)
-                        
-                        st.success(f"{len(data_entries)} new rows added successfully!")
-                        # Rerun to refresh the page with updated data
-                        st.rerun()
-
-        with col2:
-            st.subheader("📈 Region Analysis")
-            
-            # Region selection for analysis
-            unique_regions = df['Region(District)'].unique()
-            selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
-            
-            # Filter dataframe for selected region
-            region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
-            
-            # Metrics
-            col_metrics_1, col_metrics_2 = st.columns(2)
-            with col_metrics_1:
-                st.metric("Total Price Changes", len(region_analysis_df))
-            
-            # Visualization options
-            graph_type = st.selectbox("Select Graph Type", 
-                ['Net', 'Inv.', 'RD', 'STS', 'Reglr']
-            )
-            
-            # Create interactive graph
-            fig = go.Figure()
-            region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
-            region_analysis_df = region_analysis_df.sort_values('Date')
-            
-            fig.add_trace(go.Scatter(
-                x=region_analysis_df['Date'], 
-                y=region_analysis_df[graph_type], 
-                mode='lines+markers+text',
-                text=region_analysis_df[graph_type].round(2),
-                textposition='top center',
-                name=f'{graph_type} Value'
-            ))
-            
-            fig.update_layout(
-                title=f'{graph_type} Value Trend for {selected_region_analysis}',
-                xaxis_title='Date',
-                yaxis_title=f'{graph_type} Value',
-                height=400
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            graph_download_format = st.selectbox("Download Graph as", ['PNG', 'PDF'])
-                
-            if st.button("Download Graph"):
-                    if graph_download_format == 'PNG':
-                        img_bytes = pio.to_image(fig, format='png')
-                        st.download_button(
-                            label="Download Graph as PNG",
-                            data=img_bytes,
-                            file_name=f'{selected_region_analysis}_{graph_type}_trend.png',
-                            mime='image/png'
-                        )
-                    else:
-                        pdf_bytes = pio.to_image(fig, format='pdf')
-                        st.download_button(
-                            label="Download Graph as PDF",
-                            data=pdf_bytes,
-                            file_name=f'{selected_region_analysis}_{graph_type}_trend.pdf',
-                            mime='application/pdf'
-                        )
-                
-                # Display Remarks
-            st.markdown("### Remarks")
-            remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
-            remarks_df = remarks_df.sort_values('Date', ascending=False)
-            if not remarks_df.empty:
-                    # Create a styled container for remarks
-                    for _, row in remarks_df.iterrows():
-                        st.markdown(f"""
-                        <div style="background-color:#f0f2f6; 
-                                    border-left: 5px solid #4a4a4a; 
-                                    padding: 10px; 
-                                    margin-bottom: 10px; 
-                                    border-radius: 5px;">
-                            <strong>{row['Date'].strftime('%d-%b %Y')}</strong>: 
-                            {row['Remarks']}
-                        </div>
-                        """, unsafe_allow_html=True)
-            else:
-                    st.info("No remarks found for this region.")
-
-        # Global Download Section
-        st.markdown("## 📥 Download Options")
-        
-        download_options = st.radio("Download File From:", 
-            ["Entire Dataframe", "Specific Month"], 
-            horizontal=True
+        # Ask if the file requires initial editing
+        requires_editing = st.radio(
+            "Does this file require initial editing?", 
+            ["No", "Yes"],
+            help="Select 'Yes' if the uploaded file needs preprocessing"
         )
-        
-        start_date = None
-        if download_options == "Specific Month":
+
+        # Process the file based on editing requirement
+        try:
+            # Process the file
+            df = process_excel_file(uploaded_file, requires_editing == "Yes")
+            
+            # Validate DataFrame
+            required_columns = ['Region(District)', 'Date', 'Inv.', 'RD', 'STS', 'Reglr']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                st.error(f"Missing required columns: {', '.join(missing_columns)}")
+                st.stop()
+            
+            # Create two columns for layout
             col1, col2 = st.columns(2)
+
             with col1:
-                month_input = st.selectbox("Select Month", 
-                    ['January', 'February', 'March', 'April', 'May', 'June', 
-                     'July', 'August', 'September', 'October', 'November', 'December']
-                )
+                st.subheader("🔄 Data Entry")
+                
+                # Price change option
+                price_changed = st.radio("Do you want to add new data?", ["No", "Yes"])
+                
+                if price_changed == "Yes":
+                    # Get unique regions
+                    unique_regions = df['Region(District)'].unique()
+                    
+                    if len(unique_regions) == 0:
+                        st.warning("No regions found in the dataframe.")
+                    else:
+                        # Allow multiple region selection
+                        selected_regions = st.multiselect("Select Region(s)", unique_regions)
+                        
+                        # Container for data entries
+                        data_entries = []
+                        
+                        for selected_region in selected_regions:
+                            st.markdown(f"### Data Entry for {selected_region}")
+                            
+                            # Region-specific data entry
+                            region_df = df[df['Region(District)'] == selected_region]
+                            from datetime import datetime
+                            date_input = st.text_input(f"Enter Date for {selected_region}", value=datetime.now().strftime("%d-%b %Y"),placeholder="DD-Mon YYYY, e.g., 01-Jan 2024",key=f"date_{selected_region}")
+                            
+                            # Input for financial values
+                            inv_input = st.number_input(
+                                f"Enter Inv. value for {selected_region}", 
+                                value=0.0, 
+                                format="%.2f", 
+                                key=f"inv_{selected_region}"
+                            )
+                            rd_input = st.number_input(
+                                f"Enter RD value for {selected_region}", 
+                                value=0.0, 
+                                format="%.2f", 
+                                key=f"rd_{selected_region}"
+                            )
+                            sts_input = st.number_input(
+                                f"Enter STS value for {selected_region}", 
+                                value=0.0, 
+                                format="%.2f", 
+                                key=f"sts_{selected_region}"
+                            )
+                            reglr_input = st.number_input(
+                                f"Enter Reglr value for {selected_region}", 
+                                value=0.0, 
+                                format="%.2f", 
+                                key=f"reglr_{selected_region}"
+                            )
+                            
+                            # Calculate Net
+                            net_input = inv_input - rd_input - sts_input - reglr_input
+                            st.write(f"Calculated Net value for {selected_region}: {net_input}")
+                            
+                            # Calculate MoM Change
+                            last_net_value = region_df['Net'].iloc[-1] if 'Net' in region_df.columns and not region_df['Net'].empty else 0
+                            mom_change = net_input - last_net_value
+                            st.write(f"Calculated MoM Change for {selected_region}: {mom_change}")
+                            
+                            # Remarks input
+                            remarks_input = st.text_area(
+                                f"Enter Remarks for {selected_region} (Optional)", 
+                                key=f"remarks_{selected_region}"
+                            )
+                            
+                            # Prepare new row
+                            new_row = {
+                                'Region(District)': selected_region,
+                                'Date': parse_date(date_input).strftime('%d-%b %Y'),
+                                'Inv.': inv_input,
+                                'RD': rd_input,
+                                'STS': sts_input,
+                                'Reglr': reglr_input,
+                                'Net': net_input,
+                                'MoM Change': mom_change,
+                                'Remarks': remarks_input
+                            }
+                            
+                            data_entries.append(new_row)
+                            
+                            st.markdown("---")
+                        
+                        # Button to add new rows
+                        if st.button("Add New Rows to Dataframe"):
+                            new_rows_df = pd.DataFrame(data_entries)
+                            for col in df.columns:
+                              if col not in new_rows_df.columns:
+                               new_rows_df[col] = None
+                            new_rows_df = new_rows_df.reindex(columns=df.columns)
+                            df = pd.concat([df, new_rows_df], ignore_index=True)
+    
+                            st.success(f"{len(data_entries)} new rows added successfully!")
             with col2:
-                year_input = st.number_input("Select Year", 
-                    min_value=2000, max_value=2030, value=2024
+                st.subheader("📈 Region Analysis")
+                
+                # Region selection for analysis
+                unique_regions = df['Region(District)'].unique()
+                selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
+                
+                # Filter dataframe for selected region
+                region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
+                
+                # Metrics
+                col_metrics_1, col_metrics_2 = st.columns(2)
+                with col_metrics_1:
+                    st.metric("Total Price Changes", len(region_analysis_df))
+                
+                # Visualization options
+                graph_type = st.selectbox("Select Graph Type", 
+                    ['Net', 'Inv.', 'RD', 'STS', 'Reglr']
                 )
-            start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
-        
-        download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
-        format_map = {'Excel (.xlsx)': 'xlsx', 'PDF (.pdf)': 'pdf'}
-        selected_format = format_map[download_format]
-        
-        if st.button("Download Processed File"):
-            try:
-                output = save_processed_dataframe(st.session_state.df, start_date, selected_format)
-                st.download_button(
-                    label=f"Click to Download {download_format}",
-                    data=output,
-                    file_name=f'processed_price_tracker.{selected_format}',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf'
+                
+                # Create interactive graph
+                fig = go.Figure()
+                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
+                region_analysis_df = region_analysis_df.sort_values('Date')
+                
+                fig.add_trace(go.Scatter(
+                    x=region_analysis_df['Date'], 
+                    y=region_analysis_df[graph_type], 
+                    mode='lines+markers+text',
+                    text=region_analysis_df[graph_type].round(2),
+                    textposition='top center',
+                    name=f'{graph_type} Value'
+                ))
+                
+                fig.update_layout(
+                    title=f'{graph_type} Value Trend for {selected_region_analysis}',
+                    xaxis_title='Date',
+                    yaxis_title=f'{graph_type} Value',
+                    height=400
                 )
-            except Exception as e:
-                st.error(f"Error during download: {e}")
+                
+                st.plotly_chart(fig, use_container_width=True)
+                graph_download_format = st.selectbox("Download Graph as", ['PNG', 'PDF'])
+                    
+                if st.button("Download Graph"):
+                        if graph_download_format == 'PNG':
+                            img_bytes = pio.to_image(fig, format='png')
+                            st.download_button(
+                                label="Download Graph as PNG",
+                                data=img_bytes,
+                                file_name=f'{selected_region_analysis}_{graph_type}_trend.png',
+                                mime='image/png'
+                            )
+                        else:
+                            pdf_bytes = pio.to_image(fig, format='pdf')
+                            st.download_button(
+                                label="Download Graph as PDF",
+                                data=pdf_bytes,
+                                file_name=f'{selected_region_analysis}_{graph_type}_trend.pdf',
+                                mime='application/pdf'
+                            )
+                    
+                    # Display Remarks
+                st.markdown("### Remarks")
+                remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
+                remarks_df = remarks_df.sort_values('Date', ascending=False)
+                if not remarks_df.empty:
+                        # Create a styled container for remarks
+                        for _, row in remarks_df.iterrows():
+                            st.markdown(f"""
+                            <div style="background-color:#f0f2f6; 
+                                        border-left: 5px solid #4a4a4a; 
+                                        padding: 10px; 
+                                        margin-bottom: 10px; 
+                                        border-radius: 5px;">
+                                <strong>{row['Date'].strftime('%d-%b %Y')}</strong>: 
+                                {row['Remarks']}
+                            </div>
+                            """, unsafe_allow_html=True)
+                else:
+                        st.info("No remarks found for this region.")
+            # Global Download Section
+            st.markdown("## 📥 Download Options")
+            
+            download_options = st.radio("Download File From:", 
+                ["Entire Dataframe", "Specific Month"], 
+                horizontal=True
+            )
+            
+            start_date = None
+            if download_options == "Specific Month":
+                col1, col2 = st.columns(2)
+                with col1:
+                    month_input = st.selectbox("Select Month", 
+                        ['January', 'February', 'March', 'April', 'May', 'June', 
+                         'July', 'August', 'September', 'October', 'November', 'December']
+                    )
+                with col2:
+                    year_input = st.number_input("Select Year", 
+                        min_value=2000, max_value=2030, value=2024
+                    )
+                start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
+            
+            download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
+            format_map = {'Excel (.xlsx)': 'xlsx', 'PDF (.pdf)': 'pdf'}
+            selected_format = format_map[download_format]
+            
+            if st.button("Download Processed File"):
+                try:
+                    output = save_processed_dataframe(df, start_date, selected_format)
+                    st.download_button(
+                        label=f"Click to Download {download_format}",
+                        data=output,
+                        file_name=f'processed_price_tracker.{selected_format}',
+                        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf'
+                    )
+                except Exception as e:
+                    st.error(f"Error during download: {e}")
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+            st.exception(e)
 
 if __name__ == "__main__":
     main()
