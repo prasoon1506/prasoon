@@ -401,6 +401,10 @@ def main():
                             st.markdown("---")
                         # Button to add new rows
                         if st.button("Add New Rows to Dataframe"):
+                         if not data_entries:
+                          st.warning("No new entries to add.")
+                          return
+                         updated_df = df.copy()
                          new_rows_df = pd.DataFrame(data_entries)
                          updated_df = df.copy()
                          for new_row in data_entries:
