@@ -223,7 +223,20 @@ def main():
                             st.markdown("---")
                         if st.button("Add New Rows to Dataframe"):
                             for entry in data_entries:
-                                df = df.append(entry, ignore_index=True)
+                                region_rows = df[df['Region(District)'] == selected_region]
+                                last_region_index = region_rows.index[-1] + 1
+                                
+                                # Create a new DataFrame up to the last row of the selected region
+                                df_before = df.iloc[:last_region_index]
+                                
+                                # Create a new DataFrame after the last row of the selected region
+                                df_after = df.iloc[last_region_index:]
+                                
+                                # Concatenate the DataFrames
+                                df = pd.concat([df_before, new_row, df_after], ignore_index=True)
+                                
+                                # Save processed dataframe
+                                output = save_processed_dataframe(df)
                             st.success(f"{len(data_entries)} new rows added successfully!")
             with col2:
                 st.subheader("📈 Region Analysis")
