@@ -56,12 +56,9 @@ def convert_dataframe_to_pdf(df, filename):
     buffer.seek(0)
     return buffer
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
-    """
-    Save processed dataframe with options for start date and format
-    """
-    # Create a copy of the dataframe to avoid modifying the original
-    df_to_save = df.copy()
-    
+
+    if 'processed_dataframe' in st.session_state:
+        df = st.session_state['processed_dataframe']
     # Ensure Date column is datetime
     if 'Date' in df_to_save.columns:
         df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
