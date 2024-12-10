@@ -467,8 +467,8 @@ def main():
                       last_month_display = last_month_data[display_columns].copy()
                       last_month_display['Date'] = last_month_display['Date'].dt.strftime('%d-%b %Y')
                       last_month_display.set_index('Date', inplace=True)
-                      last_month_display['Reglr'] = last_month_display['Reglr'].abs().round(10)
-                      last_month_display['Net'] = last_month_display['Net'].abs().round(10)
+                      last_month_display['Reglr'] = last_month_display['Reglr'].abs().round(2)
+                      last_month_display['Net'] = last_month_display['Net'].abs().round(2)
                       st.dataframe(last_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                       col_last_1, col_last_2 = st.columns(2)
                       with col_last_1:
@@ -482,8 +482,8 @@ def main():
                      current_month_display = current_month_data[display_columns].copy()
                      current_month_display['Date'] = current_month_display['Date'].dt.strftime('%d-%b %Y')
                      current_month_display.set_index('Date', inplace=True)
-                     current_month_display['Reglr'] = current_month_display['Reglr'].abs().round(2)
-                     current_month_display['Net'] = current_month_display['Net'].abs().round(2)
+                     current_month_display['Reglr'] = current_month_display['Reglr'].abs().round(0).astype(int)
+                     current_month_display['Net'] = current_month_display['Net'].abs().round(0).astype(int)
                      st.dataframe(current_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                      col_curr_1, col_curr_2 = st.columns(2)
                      with col_curr_1:
