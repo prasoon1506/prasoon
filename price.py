@@ -447,10 +447,40 @@ def main():
                             df = updated_df
                             st.session_state['processed_dataframe'] = df
                             st.success(f"{len(data_entries)} new rows added successfully!")
-
             with col2:
                 st.subheader("📈 Region Analysis")
-                
+                unique_regions = df['Region(District)'].unique()
+                selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
+                region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
+                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
+                current_month = datetime.now().month
+                current_year = datetime.now().year
+                last_month = current_month - 1 if current_month > 1 else 12
+                last_month_year = current_year if current_month > 1 else current_year - 1
+                last_month_data = region_analysis_df[(region_analysis_df['Date'].dt.month == last_month) & (region_analysis_df['Date'].dt.year == last_month_year)]
+                current_month_data = region_analysis_df[(region_analysis_df['Date'].dt.month == current_month) & (region_analysis_df['Date'].dt.year == current_year)]
+                display_columns = ['Date', 'Inv.', 'RD', 'STS', 'Reglr', 'Net', 'MoM Change']
+                st.markdown(f"### Monthly Data for {selected_region_analysis}")
+                st.markdown("#### Last Month Data")
+                if not last_month_data.empty:
+                      st.dataframe(last_month_data[display_columns].style.background_gradient(cmap='Blues'), use_container_width=True)
+                      col_last_1, col_last_2 = st.columns(2)
+                      with col_last_1:
+                       st.metric("Price Changes (Last Month)", len(last_month_data))
+                      with col_last_2:
+                       st.metric("Change in NOD (Last Month)", last_month_data['MoM Change'].sum())
+                else:
+                     st.info(f"No data found for last month in {selected_region_analysis}")
+                   st.markdown("#### Current Month Data")
+                if not current_month_data.empty:
+                     st.dataframe(current_month_data[display_columns].style.background_gradient(cmap='Blues'), use_container_width=True)
+                     col_curr_1, col_curr_2 = st.columns(2)
+                     with col_curr_1:
+                        st.metric("Price Changes (Current Month)", len(current_month_data))
+                     with col_curr_2:
+                         st.metric("Change in NOD (Current Month)", current_month_data['MoM Change'].sum())
+                else:
+                      st.info(f"No data found for current month in {selected_region_analysis}")
                 # Region selection for analysis
                 unique_regions = df['Region(District)'].unique()
                 selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
