@@ -453,8 +453,8 @@ def main():
                 selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
                 region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
                 region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
-                current_month = datetime.now().month
-                current_year = datetime.now().year
+                current_month = dt.now().month
+                current_year = dt.now().year
                 last_month = current_month - 1 if current_month > 1 else 12
                 last_month_year = current_year if current_month > 1 else current_year - 1
                 last_month_data = region_analysis_df[(region_analysis_df['Date'].dt.month == last_month) & (region_analysis_df['Date'].dt.year == last_month_year)]
