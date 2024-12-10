@@ -472,6 +472,7 @@ def main():
                       last_month_display['STS'] = last_month_display['STS'].abs().round(0).astype(int)
                       last_month_display['Reglr'] = last_month_display['Reglr'].abs().round(0).astype(int)
                       last_month_display['Net'] = last_month_display['Net'].abs().round(0).astype(int)
+                      last_month_display['MoM Change'] = last_month_display['MoM Change'].abs().round(0).astype(int)
                       st.dataframe(last_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                       col_last_1, col_last_2 = st.columns(2)
                       with col_last_1:
@@ -490,6 +491,7 @@ def main():
                      current_month_display['STS'] = current_month_display['STS'].abs().round(0).astype(int)
                      current_month_display['Reglr'] = current_month_display['Reglr'].abs().round(0).astype(int)
                      current_month_display['Net'] = current_month_display['Net'].abs().round(0).astype(int)
+                     current_month_display['MoM Change'] = current_month_display['MoM Change'].abs().round(0).astype(int)
                      st.dataframe(current_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                      col_curr_1, col_curr_2 = st.columns(2)
                      with col_curr_1:
