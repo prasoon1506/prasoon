@@ -481,8 +481,8 @@ def main():
                      current_month_display = current_month_data[display_columns].copy()
                      current_month_display['Date'] = current_month_display['Date'].dt.strftime('%d-%b %Y')
                      current_month_display.set_index('Date', inplace=True)
-                     current_month_display['Reglr'] = current_month_display['Reglr'].abs()
-                     current_month_display['Net'] = current_month_display['Net'].abs()
+                     current_month_display['Reglr'] = np.abs(current_month_display['Reglr'])
+                     current_month_display['Net'] = np.abs(current_month_display['Net'])
                      st.dataframe(current_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                      col_curr_1, col_curr_2 = st.columns(2)
                      with col_curr_1:
