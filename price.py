@@ -450,7 +450,7 @@ def main():
             with col2:
                 st.subheader("📈 Region Analysis")
                 unique_regions = df['Region(District)'].unique()
-                selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
+                selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions,key="region")
                 region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
                 region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
                 current_month = dt.now().month
