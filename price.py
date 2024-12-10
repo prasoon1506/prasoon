@@ -457,28 +457,40 @@ def main():
                 current_year = dt.now().year
                 last_month = current_month - 1 if current_month > 1 else 12
                 last_month_year = current_year if current_month > 1 else current_year - 1
+                last_to_last_month = last_month - 1 if last_month>1 else 12
+                last_to_last_month_year = current_year if last_month>1 else current_year - 1
                 last_month_data = region_analysis_df[(region_analysis_df['Date'].dt.month == last_month) & (region_analysis_df['Date'].dt.year == last_month_year)]
                 current_month_data = region_analysis_df[(region_analysis_df['Date'].dt.month == current_month) & (region_analysis_df['Date'].dt.year == current_year)]
                 display_columns = ['Date', 'Inv.', 'RD', 'STS', 'Reglr', 'Net', 'MoM Change']
                 st.markdown(f"### Monthly Data for {selected_region_analysis}")
                 st.markdown("#### Last Month Data")
                 if not last_month_data.empty:
-                      st.dataframe(last_month_data[display_columns].style.background_gradient(cmap='Blues'), use_container_width=True)
+                      last_month_display = last_month_data[display_columns].copy()
+                      last_month_display['Date'] = last_month_display['Date'].dt.strftime('%d-%b %Y')
+                      last_month_display.set_index('Date', inplace=True)
+                      last_month_display['Reglr'] = last_month_display['Reglr'].abs()
+                      last_month_display['Net'] = last_month_display['Net'].abs()
+                      st.dataframe(last_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                       col_last_1, col_last_2 = st.columns(2)
                       with col_last_1:
-                       st.metric("Price Changes (Last Month)", len(last_month_data))
+                       st.metric(f"Total No. of Price Change in (Last Month)", len(last_month_data))
                       with col_last_2:
-                       st.metric("Change in NOD (Last Month)", last_month_data['MoM Change'].sum())
+                       st.metric("Change in NOD (Last Month) as compared to ", last_month_data['MoM Change'].sum())
                 else:
                      st.info(f"No data found for last month in {selected_region_analysis}")
                 st.markdown("#### Current Month Data")
                 if not current_month_data.empty:
-                     st.dataframe(current_month_data[display_columns].style.background_gradient(cmap='Blues'), use_container_width=True)
+                     current_month_display = current_month_data[display_columns].copy()
+                     current_month_display['Date'] = current_month_display['Date'].dt.strftime('%d-%b %Y')
+                     current_month_display.set_index('Date', inplace=True)
+                     current_month_display['Reglr'] = current_month_display['Reglr'].abs()
+                     current_month_display['Net'] = current_month_display['Net'].abs()
+                     st.dataframe(current_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                      col_curr_1, col_curr_2 = st.columns(2)
                      with col_curr_1:
-                        st.metric("Price Changes (Current Month)", len(current_month_data))
+                        st.metric("Total No. of Price Change in (Current Month)", len(current_month_data))
                      with col_curr_2:
-                         st.metric("Change in NOD (Current Month)", current_month_data['MoM Change'].sum())
+                         st.metric("Change in NOD (Current Month) as compared to last month", current_month_data['MoM Change'].sum())
                 else:
                       st.info(f"No data found for current month in {selected_region_analysis}")
                 # Region selection for analysis
