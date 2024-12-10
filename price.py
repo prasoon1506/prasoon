@@ -500,11 +500,6 @@ def main():
                          st.metric("Total Change in NOD(Current Month)", current_month_data['MoM Change'].sum())
                 else:
                       st.info(f"No data found for current month in {selected_region_analysis}")
-                # Region selection for analysis
-                unique_regions = df['Region(District)'].unique()
-                selected_region_analysis = st.selectbox("Select Region for Analysis", unique_regions)
-                
-                # Filter dataframe for selected region
                 region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
                 
                 # Metrics
