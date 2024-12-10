@@ -471,7 +471,7 @@ def main():
                        st.metric("Change in NOD (Last Month)", last_month_data['MoM Change'].sum())
                 else:
                      st.info(f"No data found for last month in {selected_region_analysis}")
-                   st.markdown("#### Current Month Data")
+                st.markdown("#### Current Month Data")
                 if not current_month_data.empty:
                      st.dataframe(current_month_data[display_columns].style.background_gradient(cmap='Blues'), use_container_width=True)
                      col_curr_1, col_curr_2 = st.columns(2)
