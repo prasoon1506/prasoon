@@ -5,6 +5,7 @@ import warnings
 import plotly.express as fx
 import plotly.graph_objs as go
 import plotly.io as pio
+import numpy as np
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
