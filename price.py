@@ -467,8 +467,8 @@ def main():
                       last_month_display = last_month_data[display_columns].copy()
                       last_month_display['Date'] = last_month_display['Date'].dt.strftime('%d-%b %Y')
                       last_month_display.set_index('Date', inplace=True)
-                      last_month_display['Reglr'] = last_month_display['Reglr'].abs().round(2)
-                      last_month_display['Net'] = last_month_display['Net'].abs().round(2)
+                      last_month_display['Reglr'] = last_month_display['Reglr'].abs().round(10)
+                      last_month_display['Net'] = last_month_display['Net'].abs().round(10)
                       st.dataframe(last_month_display.style.background_gradient(cmap='Blues'), use_container_width=True)
                       col_last_1, col_last_2 = st.columns(2)
                       with col_last_1:
