@@ -511,13 +511,24 @@ def main():
                 col_metrics_1, col_metrics_2 = st.columns(2)
                 with col_metrics_1:
                     st.metric("Total Price Changes", len(region_analysis_df))
-                
-                # Visualization options
-                graph_type = st.selectbox("Select Graph Type", 
-                    ['Net', 'Inv.', 'RD', 'STS', 'Reglr']
-                )
-                
-                # Create interactive graph
+                st.markdown("### Graph Date Range")
+                col_start_month, col_start_year = st.columns(2)
+                with col_start_month:
+                  start_month = st.selectbox("Select Start Month", ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'],index=8)
+                with col_start_year:
+                  start_year = st.number_input("Select Start Year", min_value=2000, max_value=2030, value=2024)
+                start_date = pd.to_datetime(f'01-{start_month[:3].lower()} {start_year}', format='%d-%b %Y')
+                region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
+                region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
+                filtered_df = region_analysis_df[region_analysis_df['Date'] >= start_date].copy()
+                if filtered_df.empty:
+                    st.warning(f"No data available for {selected_region_analysis} from {start_month} {start_year}")
+                else:
+                    graph_type = st.selectbox("Select Metric for Analysis", ['Net', 'Inv.', 'RD', 'STS', 'Reglr', 'MoM Change'])
+                filtered_df = filtered_df.sort_values('Date')
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=filtered_df['Date'],y=filtered_df[graph_type], mode='lines+markers+text',text=filtered_df[graph_type].round(2),textposition='top center',name=f'{graph_type} Value',line=dict(color='#1E90FF',width=3),marker=dict(size=10,color='#4169E1',symbol='circle',line=dict(color='#FFFFFF',width=2)),hovertemplate=('<b>Date</b>: %{x|%d %B %Y}<br>' +f'<b>{graph_type}</b>: %{{y:.2f}}<br>' +'<extra></extra>')))
+                graph_type = st.selectbox("Select Graph Type", ['Net', 'Inv.', 'RD', 'STS', 'Reglr'])
                 fig = go.Figure()
                 region_analysis_df['Date'] = pd.to_datetime(region_analysis_df['Date'], format='%d-%b %Y')
                 region_analysis_df = region_analysis_df.sort_values('Date')
