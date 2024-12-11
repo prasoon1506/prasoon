@@ -48,15 +48,6 @@ from reportlab.lib.units import inch
 from datetime import datetime, timedelta
 
 def generate_regional_price_trend_report(df):
-    """
-    Generate a detailed PDF report showing price trends for each region
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
-    """
     try:
         # Validate input DataFrame
         required_columns = ['Date', 'Region(District)', 'Inv.']
@@ -155,12 +146,12 @@ def generate_regional_price_trend_report(df):
                         change_values.append("0.00")
                 
                 price_progression_text = " → ".join(prices)
-                date_progression_text = " → ".join(dates)
-                change_progression_text = " → ".join(change_values)
+                date_progression_text = "   ".join(dates)
+                change_progression_text = "   ".join(change_values)
                 
                 # Add price progression, date progression, and change progression
-                story.append(Paragraph(price_progression_text, normal_style))
                 story.append(Paragraph(change_progression_text, normal_style))
+                story.append(Paragraph(price_progression_text, normal_style))
                 story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
