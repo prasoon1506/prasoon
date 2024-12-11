@@ -141,12 +141,12 @@ def generate_regional_price_trend_report(df):
          last_to_last_month_list = last_to_last_month_data.to_dict('records')
         
         # Add pricing progression
-         create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
-         create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
-         create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
+        create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
+        create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
+        create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
         
         # Add page break for next region
-         story.append(Paragraph("<pagebreak/>", normal_style))
+        story.append(Paragraph("<pagebreak/>", normal_style))
     
     # Build PDF
     doc.build(story)
