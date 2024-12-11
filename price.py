@@ -102,50 +102,51 @@ def generate_regional_price_trend_report(df):
             (region_df['Date'].dt.year == last_to_last_month.year) & 
             (region_df['Date'].dt.month == last_to_last_month.month)
         ]
-        
         def create_price_progression_paragraph(data_list, period_name):
-            """Create a narrative paragraph showing price progression"""
-            if not data_list:
-                return None
-            
-            story.append(Paragraph(period_name, month_style))
-            
-            # Sort data by date
-            data_list = sorted(data_list, key=lambda x: x['Date'])
-            
-            # Create price progression narrative
-            price_progression = []
-            for i in range(len(data_list)):
-                price_progression.append(f"{data_list[i]['Inv.']:.2f}")
-                
-                # Add arrow and change for intermediate steps
-                if i < len(data_list) - 1:
-                    change = data_list[i+1]['Inv.'] - data_list[i]['Inv.']
-                    
-                    # Choose style based on change
-                    change_style = change_style_positive if change >= 0 else change_style_negative
-                    
-                    # Format change paragraph
-                    price_progression.append(Paragraph(f"{abs(change):.2f}", change_style))
-                    price_progression.append(" → ")
-            
-            # Create a paragraph with the price progression
-            progression_text = " ".join(str(item) for item in price_progression)
-            story.append(Paragraph(progression_text, normal_style))
-            story.append(Spacer(1, 12))
+         if not data_list:
+           return None
+         story.append(Paragraph(period_name, month_style))
+         data_list = sorted(data_list, key=lambda x: x['Date'])
+         price_progression_text = []
+         for i in range(len(data_list)):
+           price_progression_text.append(f"{data_list[i]['Inv.']:.2f}")
+           if i < len(data_list) - 1:
+            change = data_list[i+1]['Inv.'] - data_list[i]['Inv.']
+            if change > 0:
+                change_text = f"+{change:.2f} ↑"
+                change_color = green
+            elif change < 0:
+                change_text = f"{change:.2f} ↓"
+                change_color = red
+            else:
+                change_text = "0.00 →"
+                change_color = black
+            price_progression_text.append(
+                Paragraph(change_text, 
+                    ParagraphStyle(
+                        'ChangeStyle',
+                        parent=normal_style,
+                        textColor=change_color,
+                        alignment=1
+                    )
+                )
+            )
+         full_progression_text = " ".join(str(item) for item in price_progression_text)
+         story.append(Paragraph(full_progression_text, normal_style))
+         story.append(Spacer(1, 12))
         
         # Convert DataFrame to list of dicts for processing
-        current_month_list = current_month_data.to_dict('records')
-        last_month_list = last_month_data.to_dict('records')
-        last_to_last_month_list = last_to_last_month_data.to_dict('records')
+         current_month_list = current_month_data.to_dict('records')
+         last_month_list = last_month_data.to_dict('records')
+         last_to_last_month_list = last_to_last_month_data.to_dict('records')
         
         # Add pricing progression
-        create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
-        create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
-        create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
+         create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
+         create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
+         create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
         
         # Add page break for next region
-        story.append(Paragraph("<pagebreak/>", normal_style))
+         story.append(Paragraph("<pagebreak/>", normal_style))
     
     # Build PDF
     doc.build(story)
