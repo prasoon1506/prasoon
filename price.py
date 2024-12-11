@@ -135,47 +135,35 @@ def generate_regional_price_trend_report(df):
             current_month_data = filter_month_data(region_df, current_date)
             last_month_data = filter_month_data(region_df, last_month)
             last_to_last_month_data = filter_month_data(region_df, last_to_last_month)
-            
             def create_price_progression_paragraph(data, period_name):
-                """Create a narrative paragraph showing price progression"""
                 if data.empty:
                     return
-                
+    
                 story.append(Paragraph(period_name, month_style))
-                
-                # Sort data by date
                 data = data.sort_values('Date')
-                
-                # Create price progression narrative
                 prices = []
                 dates = []
                 for i, row in data.iterrows():
-                    prices.append(f"{row['Inv.']:.2f}")
-                    dates.append(row['Date'].strftime('%d-%b'))
-                
+                 prices.append(f"{row['Inv.']:.2f}")
+                 dates.append(row['Date'].strftime('%d-%b'))
+    
                 price_progression_text = " → ".join(prices)
                 date_progression_text = " → ".join(dates)
-                
-                # Add change and direction for intermediate steps
                 for i in range(1, len(data)):
                     change = data.iloc[i]['Inv.'] - data.iloc[i-1]['Inv.']
-                    
-                    # Determine change direction and color
                     if change > 0:
-                        change_text = f"+{change:.2f} ↑"
-                        change_style = change_style_positive
+                      change_text = f"+{change:.2f} ↑"
+                      change_style = change_style_positive
                     elif change < 0:
-                        change_text = f"{change:.2f} ↓"
-                        change_style = change_style_negative
+                      change_text = f"{change:.2f} ↓"
+                      change_style = change_style_negative
                     else:
-                        change_text = "0.00 →"
-                        change_style = normal_style
-                    
-                    # Add change paragraph
+                     change_text = "0.00 →"
+                     change_style = normal_style
+        
                     story.append(Paragraph(change_text, change_style))
-                
-                # Create a single paragraph with the price progression
-                story.append(Paragraph(price_progression_text, normal_style))
+                story.append(Paragraph(" → ", normal_style))
+                story.append(Paragraph(prices[-1], normal_style))
                 story.append(Paragraph(date_progression_text, date_style))
                 story.append(Spacer(1, 12))
             
