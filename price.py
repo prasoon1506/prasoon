@@ -107,15 +107,9 @@ def generate_regional_price_trend_report(df):
             fontSize=10
         )
         normal_style = styles['Normal']
-        
-        # Content to be added to PDF
         story = []
-        
-        # Process each unique region
         for region in df['Region(District)'].unique():
             region_df = df[df['Region(District)'] == region].copy()
-            
-            # Add region title
             story.append(Paragraph(f"Price Trend Report: {region}", title_style))
             story.append(Spacer(1, 12))
             
@@ -140,7 +134,6 @@ def generate_regional_price_trend_report(df):
             last_to_last_month_data = filter_month_data(region_df, last_to_last_month)
             
             def create_price_progression_paragraph(data, period_name):
-                """Create a narrative paragraph showing price progression"""
                 if data.empty:
                     # If no data for the month, add a note instead of raising an error
                     story.append(Paragraph(f"{period_name}: No data available", month_style))
@@ -161,12 +154,12 @@ def generate_regional_price_trend_report(df):
                 for i in range(1, len(prices)):
                     change = float(prices[i]) - float(prices[i-1])
                     if change > 0:
-                        change_values.append(f"<font color='green'>+{change:.2f}</font>")
+                        change_values.append(f"<font color='green'>+{change:.0f}</font>")
                     elif change < 0:
-                        change_values.append(f"<font color='red'>{change:.2f}</font>")
+                        change_values.append(f"<font color='red'>{change:.0f}</font>")
                     else:
-                        change_values.append("0.00")
-                change_progression_text = " → ".join(change_values)
+                        change_values.append("0")
+                change_progression_text = "  ".join(change_values)
                 price_progression_text = " → ".join(prices)
                 date_progression_text = " → ".join(dates)
                 
