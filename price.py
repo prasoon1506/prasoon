@@ -55,6 +55,14 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
+import pandas as pd
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch
+from datetime import datetime, timedelta
 
 def generate_regional_price_trend_report(df):
     """
@@ -102,14 +110,14 @@ def generate_regional_price_trend_report(df):
             textColor=colors.green,
             spaceAfter=6
         )
-        green_style = ParagraphStyle(
-            'GreenStyle',
+        green_change_style = ParagraphStyle(
+            'GreenChangeStyle',
             parent=styles['Normal'],
             textColor=colors.green,
             fontSize=10
         )
-        red_style = ParagraphStyle(
-            'RedStyle',
+        red_change_style = ParagraphStyle(
+            'RedChangeStyle',
             parent=styles['Normal'],
             textColor=colors.red,
             fontSize=10
@@ -165,35 +173,32 @@ def generate_regional_price_trend_report(df):
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Calculate changes between consecutive prices
-                def format_change(current, previous):
-                    change = float(current) - float(previous)
-                    if change > 0:
-                        return f'<font color="green">+{change:.2f}</font>'
-                    elif change < 0:
-                        return f'<font color="red">{change:.2f}</font>'
-                    else:
-                        return '0.00'
-                
-                # Create change values
-                changes = [' ']  # First element is blank
+                changes = [" "]  # First element is blank
                 for i in range(1, len(prices)):
-                    changes.append(format_change(prices[i], prices[i-1]))
+                    change = float(prices[i]) - float(prices[i-1])
+                    changes.append(change)
                 
-                # Combine prices and changes
-                combined_progression = []
-                for i in range(len(prices)):
-                    combined_progression.append(prices[i])
-                    if i < len(changes):
-                        combined_progression.append(changes[i])
+                # Prices progression line
+                price_progression_text = " → ".join(prices)
+                story.append(Paragraph(price_progression_text, normal_style))
                 
-                # Create progression text
-                progression_text = " → ".join(combined_progression)
+                # Changes progression line
+                change_progression = []
+                for change in changes:
+                    if change == " ":
+                        change_progression.append(" ")
+                    elif change > 0:
+                        change_progression.append(f"+{change:.2f}")
+                        story.append(Paragraph(f"+{change:.2f}", green_change_style))
+                    elif change < 0:
+                        change_progression.append(f"{change:.2f}")
+                        story.append(Paragraph(f"{change:.2f}", red_change_style))
+                    else:
+                        change_progression.append("0.00")
+                        story.append(Paragraph("0.00", normal_style))
                 
-                # Create date progression
+                # Dates progression line
                 date_progression_text = " → ".join(dates)
-                
-                # Add price progression with color-coded changes
-                story.append(Paragraph(progression_text, normal_style))
                 story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
