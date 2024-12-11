@@ -11,6 +11,157 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from datetime import datetime as dt
+import pandas as pd
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from datetime import datetime, timedelta
+
+def generate_regional_price_trend_report(df):
+    """
+    Generate a detailed PDF report showing price trends for each region
+    
+    Args:
+    df (pandas.DataFrame): DataFrame containing price tracking data
+    
+    Returns:
+    io.BytesIO: PDF report buffer
+    """
+    # Ensure Date column is datetime
+    df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
+    
+    # Sort DataFrame by Region and Date
+    df = df.sort_values(['Region(District)', 'Date'])
+    
+    # Prepare buffer for PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    
+    # Get sample styles
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = styles['Title']
+    region_style = ParagraphStyle(
+        'RegionStyle', 
+        parent=styles['Heading2'], 
+        textColor=colors.dark_blue,
+        spaceAfter=12
+    )
+    month_style = ParagraphStyle(
+        'MonthStyle', 
+        parent=styles['Heading3'], 
+        textColor=colors.dark_green,
+        spaceAfter=6
+    )
+    normal_style = styles['Normal']
+    
+    # Content to be added to PDF
+    story = []
+    
+    # Process each unique region
+    for region in df['Region(District)'].unique():
+        region_df = df[df['Region(District)'] == region].copy()
+        
+        # Add region title
+        story.append(Paragraph(f"Price Trend Report: {region}", title_style))
+        story.append(Spacer(1, 12))
+        
+        # Current and last month calculation
+        current_date = datetime.now()
+        last_month = current_date.replace(day=1) - timedelta(days=1)
+        last_to_last_month = last_month.replace(day=1) - timedelta(days=1)
+        
+        current_month_name = current_date.strftime('%B %Y')
+        last_month_name = last_month.strftime('%B %Y')
+        last_to_last_month_name = last_to_last_month.strftime('%B %Y')
+        
+        # Filter data for relevant months
+        current_month_data = region_df[
+            (region_df['Date'].dt.year == current_date.year) & 
+            (region_df['Date'].dt.month == current_date.month)
+        ]
+        
+        last_month_data = region_df[
+            (region_df['Date'].dt.year == last_month.year) & 
+            (region_df['Date'].dt.month == last_month.month)
+        ]
+        
+        last_to_last_month_data = region_df[
+            (region_df['Date'].dt.year == last_to_last_month.year) & 
+            (region_df['Date'].dt.month == last_to_last_month.month)
+        ]
+        
+        def create_price_comparison_table(data_list, period_name):
+            """Create a table showing price progression for a given period"""
+            if not data_list:
+                return None
+            
+            story.append(Paragraph(period_name, month_style))
+            
+            # Sort data by date
+            data_list = sorted(data_list, key=lambda x: x['Date'])
+            
+            # Prepare table data
+            table_data = [['Date', 'Inv. Price', 'Change']]
+            
+            for i in range(len(data_list)):
+                current_row = [
+                    data_list[i]['Date'].strftime('%d-%b %Y'),
+                    f"{data_list[i]['Inv.']:.2f}",
+                    '' if i == 0 else f"{data_list[i]['Inv.'] - data_list[i-1]['Inv.']:.2f}"
+                ]
+                table_data.append(current_row)
+            
+            table = Table(table_data, colWidths=[1.5*inch, 1.5*inch, 1*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.grey),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,0), 12),
+                ('BOTTOMPADDING', (0,0), (-1,0), 12),
+                ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+                ('GRID', (0,0), (-1,-1), 1, colors.black)
+            ]))
+            
+            story.append(table)
+            story.append(Spacer(1, 12))
+        
+        # Convert DataFrame to list of dicts for processing
+        current_month_list = current_month_data.to_dict('records')
+        last_month_list = last_month_data.to_dict('records')
+        last_to_last_month_list = last_to_last_month_data.to_dict('records')
+        
+        # Add pricing progression
+        create_price_comparison_table(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
+        create_price_comparison_table(last_month_list, f"Price Progression in {last_month_name}")
+        create_price_comparison_table(current_month_list, f"Price Progression in {current_month_name}")
+        
+        # Add page break for next region
+        story.append(Paragraph("<pagebreak/>", normal_style))
+    
+    # Build PDF
+    doc.build(story)
+    
+    # Reset buffer position
+    buffer.seek(0)
+    return buffer
+
+def save_regional_price_trend_report(df):
+    """
+    Save the regional price trend report as a PDF
+    
+    Args:
+    df (pandas.DataFrame): DataFrame containing price tracking data
+    
+    Returns:
+    io.BytesIO: PDF report buffer
+    """
+    return generate_regional_price_trend_report(df)
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
