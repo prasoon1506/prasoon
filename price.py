@@ -21,7 +21,6 @@ from reportlab.lib.units import inch
 from datetime import datetime, timedelta
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import green, red, black
-
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
@@ -117,22 +116,22 @@ def generate_regional_price_trend_report(df):
                 """Create a narrative paragraph showing price progression"""
                 if data.empty:
                     return
-                
+
                 story.append(Paragraph(period_name, month_style))
-                
+
                 # Sort data by date
                 data = data.sort_values('Date')
-                
+
                 # Create price progression narrative
                 price_progression_text = []
                 for i in range(len(data)):
                     # Add current price
                     price_progression_text.append(f"{data.iloc[i]['Inv.']:.2f}")
-                    
+
                     # Add change and direction for intermediate steps
                     if i < len(data) - 1:
                         change = data.iloc[i+1]['Inv.'] - data.iloc[i]['Inv.']
-                        
+
                         # Determine change direction and color
                         if change > 0:
                             change_text = f"+{change:.2f} ↑"
@@ -141,26 +140,25 @@ def generate_regional_price_trend_report(df):
                             change_text = f"{change:.2f} ↓"
                             change_color = red
                         else:
-                            change_text = "0.00 →"
+                            change_text = "→"
                             change_color = black
-                        
-                        # Create styled change paragraph
-                        change_paragraph = Paragraph(
-                            change_text, 
+
+                        # Add change paragraph
+                        price_progression_text.append(Paragraph(
+                            change_text,
                             ParagraphStyle(
                                 'ChangeStyle',
                                 parent=normal_style,
                                 textColor=change_color,
                                 alignment=1
                             )
-                        )
-                        price_progression_text.append(change_paragraph)
-                
+                        ))
+
                 # Create a single paragraph with the price progression
                 full_progression_text = " ".join(str(item) for item in price_progression_text)
                 story.append(Paragraph(full_progression_text, normal_style))
                 story.append(Spacer(1, 12))
-            
+
             # Add pricing progression for each month period
             create_price_progression_paragraph(
                 last_to_last_month_data, 
@@ -210,7 +208,6 @@ def generate_regional_price_trend_report(df):
     except Exception as e:
         print(f"Error generating report: {e}")
         raise
-
 def save_regional_price_trend_report(df):
     return generate_regional_price_trend_report(df)
 def convert_dataframe_to_pdf(df, filename):
