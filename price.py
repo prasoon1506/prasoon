@@ -38,6 +38,12 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import io
+from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 def generate_regional_price_trend_report(df):
     """
@@ -89,13 +95,19 @@ def generate_regional_price_trend_report(df):
             'ChangeStylePositive',
             parent=styles['Normal'],
             textColor=colors.green,
-            alignment=1
+            fontSize=10,
+            leading=12,
+            spaceBefore=0,
+            spaceAfter=0
         )
         change_style_negative = ParagraphStyle(
             'ChangeStyleNegative',
             parent=styles['Normal'],
             textColor=colors.red,
-            alignment=1
+            fontSize=10,
+            leading=12,
+            spaceBefore=0,
+            spaceAfter=0
         )
         date_style = ParagraphStyle(
             'DateStyle',
@@ -135,35 +147,48 @@ def generate_regional_price_trend_report(df):
             current_month_data = filter_month_data(region_df, current_date)
             last_month_data = filter_month_data(region_df, last_month)
             last_to_last_month_data = filter_month_data(region_df, last_to_last_month)
+            
             def create_price_progression_paragraph(data, period_name):
+                """Create a narrative paragraph showing price progression"""
                 if data.empty:
                     return
-    
+                
                 story.append(Paragraph(period_name, month_style))
+                
+                # Sort data by date
                 data = data.sort_values('Date')
+                
+                # Create price progression narrative
                 prices = []
                 dates = []
                 for i, row in data.iterrows():
-                 prices.append(f"{row['Inv.']:.2f}")
-                 dates.append(row['Date'].strftime('%d-%b'))
-    
+                    prices.append(f"{row['Inv.']:.2f}")
+                    dates.append(row['Date'].strftime('%d-%b'))
+                
                 price_progression_text = " → ".join(prices)
                 date_progression_text = " → ".join(dates)
+                
+                # Add change and direction for intermediate steps
                 for i in range(1, len(data)):
                     change = data.iloc[i]['Inv.'] - data.iloc[i-1]['Inv.']
+                    
+                    # Determine change direction and color
                     if change > 0:
-                      change_text = f"+{change:.2f} ↑"
-                      change_style = change_style_positive
+                        change_text = f"+{change:.2f}"
+                        change_style = change_style_positive
                     elif change < 0:
-                      change_text = f"{change:.2f} ↓"
-                      change_style = change_style_negative
+                        change_text = f"{change:.2f}"
+                        change_style = change_style_negative
                     else:
-                     change_text = "0.00 →"
-                     change_style = normal_style
-        
+                        change_text = "0.00"
+                        change_style = normal_style
+                    
+                    # Add change paragraph above the arrow
                     story.append(Paragraph(change_text, change_style))
-                story.append(Paragraph(" → ", normal_style))
-                story.append(Paragraph(prices[-1], normal_style))
+                    story.append(Paragraph(" → ", normal_style))
+                
+                # Create a single paragraph with the price progression
+                story.append(Paragraph(price_progression_text, normal_style))
                 story.append(Paragraph(date_progression_text, date_style))
                 story.append(Spacer(1, 12))
             
@@ -228,6 +253,7 @@ def save_regional_price_trend_report(df):
     io.BytesIO: PDF report buffer
     """
     return generate_regional_price_trend_report(df)
+
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
