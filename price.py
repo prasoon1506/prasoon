@@ -39,14 +39,14 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import pandas as pd
-import pandas as pd
 import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
+import pandas as pd
 from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
@@ -93,29 +93,6 @@ def generate_regional_price_trend_report(df):
             textColor=colors.green,
             spaceAfter=6
         )
-        
-        # Small font style for changes
-        small_change_style = ParagraphStyle(
-            'SmallChangeStyle',
-            parent=styles['Normal'],
-            fontSize=8,
-            alignment=1  # Center alignment
-        )
-        
-        # Small green change style
-        small_green_style = ParagraphStyle(
-            'SmallGreenStyle',
-            parent=small_change_style,
-            textColor=colors.green
-        )
-        
-        # Small red change style
-        small_red_style = ParagraphStyle(
-            'SmallRedStyle',
-            parent=small_change_style,
-            textColor=colors.red
-        )
-        
         normal_style = styles['Normal']
         
         # Create larger font style for price progression
@@ -168,46 +145,38 @@ def generate_regional_price_trend_report(df):
                 prices = data['Inv.'].apply(lambda x: f"{x:.0f}").tolist()
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
-                # Create price progression with changes above arrows
-                progression_elements = []
+                # Prepare price progression text with changes on arrows
+                price_progression_parts = []
                 for i in range(len(prices)):
-                    if i == 0:
-                        # First price
-                        progression_elements.append(prices[i])
-                    else:
-                        # Calculate change
-                        change = float(prices[i]) - float(prices[i-1])
-                        
-                        # Determine change style and text
+                    # Add price
+                    price_progression_parts.append(prices[i])
+                    
+                    # Add change annotation on arrow for all except the last price
+                    if i < len(prices) - 1:
+                        change = float(prices[i+1]) - float(prices[i])
                         if change > 0:
-                            change_style = small_green_style
-                            change_text = f'+{change:.0f}'
+                            # Green upward change
+                            price_progression_parts.append(
+                                f'<sup><font color="green">+{change:.0f}</font></sup>⇒⇒'
+                            )
                         elif change < 0:
-                            change_style = small_red_style
-                            change_text = f'{change:.0f}'
+                            # Red downward change
+                            price_progression_parts.append(
+                                f'<sup><font color="red">{change:.0f}</font></sup>⇒⇒'
+                            )
                         else:
-                            change_style = small_change_style
-                            change_text = '0'
-                        
-                        # Add change paragraph above the arrow
-                        progression_elements.append(Paragraph(change_text, change_style))
-                        progression_elements.append('⇒')
-                        progression_elements.append(prices[i])
+                            # Neutral change
+                            price_progression_parts.append('⇒⇒')
                 
-                # Combine progression elements
-                progression_text = []
-                for elem in progression_elements:
-                    if isinstance(elem, str):
-                        progression_text.append(elem)
-                    elif isinstance(elem, Paragraph):
-                        progression_text.append(str(elem))
+                # Join the progression text
+                full_progression = " ".join(price_progression_parts)
                 
-                # Add full progression
-                story.append(Paragraph(' '.join(progression_text), large_price_style))
+                # Add date progression below
+                date_progression_text = " → ".join(dates)
                 
-                # Add dates
-                date_progression = ' ⇒ '.join(dates)
-                story.append(Paragraph(date_progression, normal_style))
+                # Add price progression with larger font
+                story.append(Paragraph(full_progression, large_price_style))
+                story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
             # Add pricing progression for each month period
@@ -235,6 +204,7 @@ def generate_regional_price_trend_report(df):
         print(f"Error generating report: {e}")
         raise
 
+# Companion function to save the report
 def save_regional_price_trend_report(df):
     """
     Save the regional price trend report as a PDF
