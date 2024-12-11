@@ -14,7 +14,7 @@ from datetime import datetime as dt
 import pandas as pd
 import io
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
@@ -25,135 +25,191 @@ from reportlab.lib.colors import green, red, black
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
+    
+    Args:
+    df (pandas.DataFrame): DataFrame containing price tracking data
+    
+    Returns:
+    io.BytesIO: PDF report buffer
     """
-    # Ensure Date column is datetime
-    df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
-    
-    # Sort DataFrame by Region and Date
-    df = df.sort_values(['Region(District)', 'Date'])
-    
-    # Prepare buffer for PDF
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    
-    # Get sample styles
-    styles = getSampleStyleSheet()
-    
-    # Custom styles
-    title_style = styles['Title']
-    region_style = ParagraphStyle(
-        'RegionStyle', 
-        parent=styles['Heading2'], 
-        textColor=colors.blue,
-        spaceAfter=12
-    )
-    month_style = ParagraphStyle(
-        'MonthStyle', 
-        parent=styles['Heading3'], 
-        textColor=colors.green,
-        spaceAfter=6
-    )
-    change_style_positive = ParagraphStyle(
-        'ChangeStylePositive',
-        parent=styles['Normal'],
-        textColor=green,
-        alignment=1
-    )
-    change_style_negative = ParagraphStyle(
-        'ChangeStyleNegative',
-        parent=styles['Normal'],
-        textColor=red,
-        alignment=1
-    )
-    normal_style = styles['Normal']
-    
-    # Content to be added to PDF
-    story = []
-    
-    # Process each unique region
-    for region in df['Region(District)'].unique():
-        region_df = df[df['Region(District)'] == region].copy()
+    try:
+        # Validate input DataFrame
+        required_columns = ['Date', 'Region(District)', 'Inv.']
+        for col in required_columns:
+            if col not in df.columns:
+                raise ValueError(f"Missing required column: {col}")
+
+        # Ensure Date column is datetime
+        df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
         
-        # Add region title
-        story.append(Paragraph(f"Price Trend Report: {region}", title_style))
-        story.append(Spacer(1, 12))
+        # Sort DataFrame by Region and Date
+        df = df.sort_values(['Region(District)', 'Date'])
         
-        # Current and last month calculation
-        current_date = datetime.now()
-        last_month = current_date.replace(day=1) - timedelta(days=1)
-        last_to_last_month = last_month.replace(day=1) - timedelta(days=1)
+        # Prepare buffer for PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                                rightMargin=72, leftMargin=72, 
+                                topMargin=72, bottomMargin=18)
         
-        current_month_name = current_date.strftime('%B %Y')
-        last_month_name = last_month.strftime('%B %Y')
-        last_to_last_month_name = last_to_last_month.strftime('%B %Y')
+        # Get sample styles
+        styles = getSampleStyleSheet()
         
-        # Filter data for relevant months
-        current_month_data = region_df[
-            (region_df['Date'].dt.year == current_date.year) & 
-            (region_df['Date'].dt.month == current_date.month)
-        ]
+        # Custom styles
+        title_style = styles['Title']
+        region_style = ParagraphStyle(
+            'RegionStyle', 
+            parent=styles['Heading2'], 
+            textColor=colors.blue,
+            spaceAfter=12
+        )
+        month_style = ParagraphStyle(
+            'MonthStyle', 
+            parent=styles['Heading3'], 
+            textColor=colors.green,
+            spaceAfter=6
+        )
+        change_style_positive = ParagraphStyle(
+            'ChangeStylePositive',
+            parent=styles['Normal'],
+            textColor=green,
+            alignment=1
+        )
+        change_style_negative = ParagraphStyle(
+            'ChangeStyleNegative',
+            parent=styles['Normal'],
+            textColor=red,
+            alignment=1
+        )
+        normal_style = styles['Normal']
         
-        last_month_data = region_df[
-            (region_df['Date'].dt.year == last_month.year) & 
-            (region_df['Date'].dt.month == last_month.month)
-        ]
+        # Content to be added to PDF
+        story = []
         
-        last_to_last_month_data = region_df[
-            (region_df['Date'].dt.year == last_to_last_month.year) & 
-            (region_df['Date'].dt.month == last_to_last_month.month)
-        ]
-        def create_price_progression_paragraph(data_list, period_name):
-         if not data_list:
-           return None
-         story.append(Paragraph(period_name, month_style))
-         data_list = sorted(data_list, key=lambda x: x['Date'])
-         price_progression_text = []
-         for i in range(len(data_list)):
-           price_progression_text.append(f"{data_list[i]['Inv.']:.2f}")
-           if i < len(data_list) - 1:
-            change = data_list[i+1]['Inv.'] - data_list[i]['Inv.']
-            if change > 0:
-                change_text = f"+{change:.2f} ↑"
-                change_color = green
-            elif change < 0:
-                change_text = f"{change:.2f} ↓"
-                change_color = red
-            else:
-                change_text = "0.00 →"
-                change_color = black
-            price_progression_text.append(
-                Paragraph(change_text, 
-                    ParagraphStyle(
-                        'ChangeStyle',
-                        parent=normal_style,
-                        textColor=change_color,
-                        alignment=1
-                    )
-                )
+        # Process each unique region
+        for region in df['Region(District)'].unique():
+            region_df = df[df['Region(District)'] == region].copy()
+            
+            # Add region title
+            story.append(Paragraph(f"Price Trend Report: {region}", title_style))
+            story.append(Spacer(1, 12))
+            
+            # Current and last month calculation
+            current_date = datetime.now()
+            last_month = current_date.replace(day=1) - timedelta(days=1)
+            last_to_last_month = last_month.replace(day=1) - timedelta(days=1)
+            
+            current_month_name = current_date.strftime('%B %Y')
+            last_month_name = last_month.strftime('%B %Y')
+            last_to_last_month_name = last_to_last_month.strftime('%B %Y')
+            
+            # Filter data for relevant months
+            def filter_month_data(df, date):
+                return df[
+                    (df['Date'].dt.year == date.year) & 
+                    (df['Date'].dt.month == date.month)
+                ]
+            
+            current_month_data = filter_month_data(region_df, current_date)
+            last_month_data = filter_month_data(region_df, last_month)
+            last_to_last_month_data = filter_month_data(region_df, last_to_last_month)
+            
+            def create_price_progression_paragraph(data, period_name):
+                """Create a narrative paragraph showing price progression"""
+                if data.empty:
+                    return
+                
+                story.append(Paragraph(period_name, month_style))
+                
+                # Sort data by date
+                data = data.sort_values('Date')
+                
+                # Create price progression narrative
+                price_progression_text = []
+                for i in range(len(data)):
+                    # Add current price
+                    price_progression_text.append(f"{data.iloc[i]['Inv.']:.2f}")
+                    
+                    # Add change and direction for intermediate steps
+                    if i < len(data) - 1:
+                        change = data.iloc[i+1]['Inv.'] - data.iloc[i]['Inv.']
+                        
+                        # Determine change direction and color
+                        if change > 0:
+                            change_text = f"+{change:.2f} ↑"
+                            change_color = green
+                        elif change < 0:
+                            change_text = f"{change:.2f} ↓"
+                            change_color = red
+                        else:
+                            change_text = "0.00 →"
+                            change_color = black
+                        
+                        # Create styled change paragraph
+                        change_paragraph = Paragraph(
+                            change_text, 
+                            ParagraphStyle(
+                                'ChangeStyle',
+                                parent=normal_style,
+                                textColor=change_color,
+                                alignment=1
+                            )
+                        )
+                        price_progression_text.append(change_paragraph)
+                
+                # Create a single paragraph with the price progression
+                full_progression_text = " ".join(str(item) for item in price_progression_text)
+                story.append(Paragraph(full_progression_text, normal_style))
+                story.append(Spacer(1, 12))
+            
+            # Add pricing progression for each month period
+            create_price_progression_paragraph(
+                last_to_last_month_data, 
+                f"Price Progression in {last_to_last_month_name}"
             )
-         full_progression_text = " ".join(str(item) for item in price_progression_text)
-         story.append(Paragraph(full_progression_text, normal_style))
-         story.append(Spacer(1, 12))
+            create_price_progression_paragraph(
+                last_month_data, 
+                f"Price Progression in {last_month_name}"
+            )
+            create_price_progression_paragraph(
+                current_month_data, 
+                f"Price Progression in {current_month_name}"
+            )
+            
+            # Optional: Add summary statistics table
+            summary_data = [
+                ['Metric', 'Value'],
+                ['Average Price', f"{region_df['Inv.'].mean():.2f}"],
+                ['Minimum Price', f"{region_df['Inv.'].min():.2f}"],
+                ['Maximum Price', f"{region_df['Inv.'].max():.2f}"],
+                ['Price Volatility', f"{region_df['Inv.'].std():.2f}"]
+            ]
+            
+            summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+            summary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.grey),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,0), 12),
+                ('BOTTOMPADDING', (0,0), (-1,0), 12),
+                ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+                ('GRID', (0,0), (-1,-1), 1, colors.black)
+            ]))
+            story.append(summary_table)
+            
+            # Add page break for next region
+            story.append(Paragraph("<pagebreak/>", normal_style))
         
-        # Convert DataFrame to list of dicts for processing
-         current_month_list = current_month_data.to_dict('records')
-         last_month_list = last_month_data.to_dict('records')
-         last_to_last_month_list = last_to_last_month_data.to_dict('records')
+        # Build PDF
+        doc.build(story)
         
-        # Add pricing progression
-        create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
-        create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
-        create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
-        
-        # Add page break for next region
-        story.append(Paragraph("<pagebreak/>", normal_style))
+        # Reset buffer position
+        buffer.seek(0)
+        return buffer
     
-    # Build PDF
-    doc.build(story)
-    
-    # Reset buffer position
-    buffer.seek(0)
-    return buffer
+    except Exception as e:
+        print(f"Error generating report: {e}")
+        raise
 
 def save_regional_price_trend_report(df):
     return generate_regional_price_trend_report(df)
