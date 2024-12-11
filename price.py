@@ -94,14 +94,14 @@ def generate_regional_price_trend_report(df):
             textColor=colors.green,
             spaceAfter=6
         )
-        positive_change_style = ParagraphStyle(
-            'PositiveChangeStyle',
+        green_style = ParagraphStyle(
+            'GreenStyle',
             parent=styles['Normal'],
             textColor=colors.green,
             fontSize=10
         )
-        negative_change_style = ParagraphStyle(
-            'NegativeChangeStyle',
+        red_style = ParagraphStyle(
+            'RedStyle',
             parent=styles['Normal'],
             textColor=colors.red,
             fontSize=10
@@ -157,35 +157,31 @@ def generate_regional_price_trend_report(df):
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Calculate changes between consecutive prices
-                change_elements = [" "]  # First element is blank
+                change_values = [" "]  # First element is blank
+                change_styles = [normal_style]  # Default style for first element
                 for i in range(1, len(prices)):
                     change = float(prices[i]) - float(prices[i-1])
                     if change > 0:
-                        change_str = f"+{change:.2f}"
-                        change_elements.append(
-                            Paragraph(change_str, positive_change_style)
-                        )
+                        change_values.append(f"+{change:.2f}")
+                        change_styles.append(green_style)
                     elif change < 0:
-                        change_str = f"{change:.2f}"
-                        change_elements.append(
-                            Paragraph(change_str, negative_change_style)
-                        )
+                        change_values.append(f"{change:.2f}")
+                        change_styles.append(red_style)
                     else:
-                        change_str = "0.00"
-                        change_elements.append(
-                            Paragraph(change_str, normal_style)
-                        )
+                        change_values.append("0.00")
+                        change_styles.append(normal_style)
                 
-                # Price progression
                 price_progression_text = " → ".join(prices)
+                date_progression_text = " → ".join(dates)
+                
+                # Add price progression
                 story.append(Paragraph(price_progression_text, normal_style))
                 
-                # Date progression
-                date_progression_text = " → ".join(dates)
-                story.append(Paragraph(date_progression_text, normal_style))
+                # Add changes with color-coded styles
+                for change, style in zip(change_values, change_styles):
+                    story.append(Paragraph(change, style))
                 
-                # Change progression (with color-coded changes)
-                story.extend(change_elements[1:])  # Skip the first blank element
+                story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
             # Add pricing progression for each month period
@@ -239,6 +235,15 @@ def generate_regional_price_trend_report(df):
         raise
 
 def save_regional_price_trend_report(df):
+    """
+    Save the regional price trend report as a PDF
+    
+    Args:
+    df (pandas.DataFrame): DataFrame containing price tracking data
+    
+    Returns:
+    io.BytesIO: PDF report buffer
+    """
     return generate_regional_price_trend_report(df)
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
