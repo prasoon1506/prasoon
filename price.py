@@ -47,7 +47,6 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
-
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
@@ -107,6 +106,15 @@ def generate_regional_price_trend_report(df):
             fontSize=10
         )
         normal_style = styles['Normal']
+        
+        # Create larger font style for price progression
+        large_price_style = ParagraphStyle(
+            'LargePriceStyle',
+            parent=styles['Normal'],
+            fontSize=14,
+            spaceAfter=6
+        )
+        
         story = []
         for region in df['Region(District)'].unique():
             region_df = df[df['Region(District)'] == region].copy()
@@ -159,12 +167,16 @@ def generate_regional_price_trend_report(df):
                         change_values.append(f"<font color='red'>{change:.0f}</font>")
                     else:
                         change_values.append("0")
-                change_progression_text = " → ".join(change_values)
-                price_progression_text = " → ".join(prices)
+                
+                # Use different length Unicode arrows
+                # Long arrow (⇒) for prices, medium arrow (→) for dates, small arrow (➤) for changes
+                change_progression_text = " ➤ ".join(change_values)
+                price_progression_text = " ⇒ ".join(prices)
                 date_progression_text = " → ".join(dates)
-                # Add price progression, change progression, and date progression
+                
+                # Add price progression with larger font
                 story.append(Paragraph(change_progression_text, normal_style))
-                story.append(Paragraph(price_progression_text, normal_style))
+                story.append(Paragraph(price_progression_text, large_price_style))
                 story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
@@ -204,6 +216,7 @@ def save_regional_price_trend_report(df):
     io.BytesIO: PDF report buffer
     """
     return generate_regional_price_trend_report(df)
+
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
