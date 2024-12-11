@@ -158,7 +158,7 @@ def generate_regional_price_trend_report(df):
                         else:
                             # Neutral change
                             price_progression_parts.append(
-                                f'<sup><font size="8">{change:.0f}</font></sup>→'
+                                f'<sup><font size="8">00</font></sup>→'
                             )
                 full_progression = " ".join(price_progression_parts)
                 
