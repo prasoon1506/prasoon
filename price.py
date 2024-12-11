@@ -153,7 +153,7 @@ def generate_regional_price_trend_report(df):
                 data = data.sort_values('Date')
                 
                 # Create price progression narrative
-                prices = data['Inv.'].apply(lambda x: f"{x:.2f}").tolist()
+                prices = data['Inv.'].apply(lambda x: f"{x:.0f}").tolist()
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Calculate changes between consecutive prices
@@ -165,7 +165,7 @@ def generate_regional_price_trend_report(df):
                     elif change < 0:
                         change_values.append(f"<font color='red'>{change:.2f}</font>")
                     else:
-                        change_values.append("  0  ")
+                        change_values.append("0.00")
                 change_progression_text = " → ".join(change_values)
                 price_progression_text = " → ".join(prices)
                 date_progression_text = " → ".join(dates)
@@ -188,32 +188,7 @@ def generate_regional_price_trend_report(df):
             )
             create_price_progression_paragraph(
                 current_month_data, 
-                f"Price Progression in {current_month_name}"
-            )
-            
-            # Optional: Add summary statistics table
-            summary_data = [
-                ['Metric', 'Value'],
-                ['Average Price', f"{region_df['Inv.'].mean():.2f}"],
-                ['Minimum Price', f"{region_df['Inv.'].min():.2f}"],
-                ['Maximum Price', f"{region_df['Inv.'].max():.2f}"],
-                ['Price Volatility', f"{region_df['Inv.'].std():.2f}"]
-            ]
-            
-            summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
-            summary_table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.grey),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0,0), (-1,0), 12),
-                ('BOTTOMPADDING', (0,0), (-1,0), 12),
-                ('BACKGROUND', (0,1), (-1,-1), colors.beige),
-                ('GRID', (0,0), (-1,-1), 1, colors.black)
-            ]))
-            story.append(summary_table)
-            
-            # Add page break for next region
+                f"Price Progression in {current_month_name}")
             story.append(Paragraph("<pagebreak/>", normal_style))
         
         # Build PDF
