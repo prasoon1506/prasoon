@@ -48,13 +48,13 @@ def generate_regional_price_trend_report(df):
     region_style = ParagraphStyle(
         'RegionStyle', 
         parent=styles['Heading2'], 
-        textColor=colors.dark_blue,
+        textColor=colors.blue,
         spaceAfter=12
     )
     month_style = ParagraphStyle(
         'MonthStyle', 
         parent=styles['Heading3'], 
-        textColor=colors.dark_green,
+        textColor=colors.green,
         spaceAfter=6
     )
     normal_style = styles['Normal']
@@ -119,7 +119,7 @@ def generate_regional_price_trend_report(df):
             table = Table(table_data, colWidths=[1.5*inch, 1.5*inch, 1*inch])
             table.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), colors.grey),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
                 ('ALIGN', (0,0), (-1,-1), 'CENTER'),
                 ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0,0), (-1,0), 12),
