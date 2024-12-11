@@ -111,7 +111,7 @@ def generate_regional_price_trend_report(df):
         large_price_style = ParagraphStyle(
             'LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=15,
             spaceAfter=6
         )
         
@@ -170,7 +170,7 @@ def generate_regional_price_trend_report(df):
                 
                 # Use different length Unicode arrows
                 # Long arrow (⇒) for prices, medium arrow (→) for dates, small arrow (➤) for changes
-                change_progression_text = " ➤ ".join(change_values)
+                change_progression_text = " ➤➤➤ ".join(change_values)
                 price_progression_text = " ⇒ ".join(prices)
                 date_progression_text = " → ".join(dates)
                 
