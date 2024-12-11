@@ -14,21 +14,17 @@ from datetime import datetime as dt
 import pandas as pd
 import io
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
+from reportlab.pdfgen import canvas
+from reportlab.lib.colors import green, red, black
 
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
     """
     # Ensure Date column is datetime
     df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
@@ -56,6 +52,18 @@ def generate_regional_price_trend_report(df):
         parent=styles['Heading3'], 
         textColor=colors.green,
         spaceAfter=6
+    )
+    change_style_positive = ParagraphStyle(
+        'ChangeStylePositive',
+        parent=styles['Normal'],
+        textColor=green,
+        alignment=1
+    )
+    change_style_negative = ParagraphStyle(
+        'ChangeStyleNegative',
+        parent=styles['Normal'],
+        textColor=red,
+        alignment=1
     )
     normal_style = styles['Normal']
     
@@ -95,8 +103,8 @@ def generate_regional_price_trend_report(df):
             (region_df['Date'].dt.month == last_to_last_month.month)
         ]
         
-        def create_price_comparison_table(data_list, period_name):
-            """Create a table showing price progression for a given period"""
+        def create_price_progression_paragraph(data_list, period_name):
+            """Create a narrative paragraph showing price progression"""
             if not data_list:
                 return None
             
@@ -105,30 +113,25 @@ def generate_regional_price_trend_report(df):
             # Sort data by date
             data_list = sorted(data_list, key=lambda x: x['Date'])
             
-            # Prepare table data
-            table_data = [['Date', 'Inv. Price', 'Change']]
-            
+            # Create price progression narrative
+            price_progression = []
             for i in range(len(data_list)):
-                current_row = [
-                    data_list[i]['Date'].strftime('%d-%b %Y'),
-                    f"{data_list[i]['Inv.']:.2f}",
-                    '' if i == 0 else f"{data_list[i]['Inv.'] - data_list[i-1]['Inv.']:.2f}"
-                ]
-                table_data.append(current_row)
+                price_progression.append(f"{data_list[i]['Inv.']:.2f}")
+                
+                # Add arrow and change for intermediate steps
+                if i < len(data_list) - 1:
+                    change = data_list[i+1]['Inv.'] - data_list[i]['Inv.']
+                    
+                    # Choose style based on change
+                    change_style = change_style_positive if change >= 0 else change_style_negative
+                    
+                    # Format change paragraph
+                    price_progression.append(Paragraph(f"{abs(change):.2f}", change_style))
+                    price_progression.append(" → ")
             
-            table = Table(table_data, colWidths=[1.5*inch, 1.5*inch, 1*inch])
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.grey),
-                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0,0), (-1,0), 12),
-                ('BOTTOMPADDING', (0,0), (-1,0), 12),
-                ('BACKGROUND', (0,1), (-1,-1), colors.beige),
-                ('GRID', (0,0), (-1,-1), 1, colors.black)
-            ]))
-            
-            story.append(table)
+            # Create a paragraph with the price progression
+            progression_text = " ".join(str(item) for item in price_progression)
+            story.append(Paragraph(progression_text, normal_style))
             story.append(Spacer(1, 12))
         
         # Convert DataFrame to list of dicts for processing
@@ -137,9 +140,9 @@ def generate_regional_price_trend_report(df):
         last_to_last_month_list = last_to_last_month_data.to_dict('records')
         
         # Add pricing progression
-        create_price_comparison_table(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
-        create_price_comparison_table(last_month_list, f"Price Progression in {last_month_name}")
-        create_price_comparison_table(current_month_list, f"Price Progression in {current_month_name}")
+        create_price_progression_paragraph(last_to_last_month_list, f"Price Progression in {last_to_last_month_name}")
+        create_price_progression_paragraph(last_month_list, f"Price Progression in {last_month_name}")
+        create_price_progression_paragraph(current_month_list, f"Price Progression in {current_month_name}")
         
         # Add page break for next region
         story.append(Paragraph("<pagebreak/>", normal_style))
@@ -152,15 +155,6 @@ def generate_regional_price_trend_report(df):
     return buffer
 
 def save_regional_price_trend_report(df):
-    """
-    Save the regional price trend report as a PDF
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
-    """
     return generate_regional_price_trend_report(df)
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
