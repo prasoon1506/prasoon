@@ -94,13 +94,26 @@ def generate_regional_price_trend_report(df):
             spaceAfter=6
         )
         
-        # New style for small change text above arrow
+        # Small font style for changes
         small_change_style = ParagraphStyle(
             'SmallChangeStyle',
             parent=styles['Normal'],
             fontSize=8,
-            alignment=1,  # Center alignment
-            spaceAfter=2
+            alignment=1  # Center alignment
+        )
+        
+        # Small green change style
+        small_green_style = ParagraphStyle(
+            'SmallGreenStyle',
+            parent=small_change_style,
+            textColor=colors.green
+        )
+        
+        # Small red change style
+        small_red_style = ParagraphStyle(
+            'SmallRedStyle',
+            parent=small_change_style,
+            textColor=colors.red
         )
         
         normal_style = styles['Normal']
@@ -110,7 +123,6 @@ def generate_regional_price_trend_report(df):
             'LargePriceStyle',
             parent=styles['Normal'],
             fontSize=15,
-            alignment=1,  # Center alignment
             spaceAfter=6
         )
         
@@ -157,36 +169,44 @@ def generate_regional_price_trend_report(df):
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Create price progression with changes above arrows
-                progression_components = []
+                progression_elements = []
                 for i in range(len(prices)):
                     if i == 0:
                         # First price
-                        progression_components.append(prices[i])
+                        progression_elements.append(prices[i])
                     else:
                         # Calculate change
                         change = float(prices[i]) - float(prices[i-1])
                         
-                        # Format change color
+                        # Determine change style and text
                         if change > 0:
-                            change_text = f'<font color="green">+{change:.0f}</font>'
+                            change_style = small_green_style
+                            change_text = f'+{change:.0f}'
                         elif change < 0:
-                            change_text = f'<font color="red">{change:.0f}</font>'
+                            change_style = small_red_style
+                            change_text = f'{change:.0f}'
                         else:
+                            change_style = small_change_style
                             change_text = '0'
                         
-                        # Add change as a separate small paragraph
-                        story.append(Paragraph(change_text, small_change_style))
-                        
-                        # Combine previous price and current price with long arrow
-                        progression_components.append('⇒')
-                        progression_components.append(prices[i])
+                        # Add change paragraph above the arrow
+                        progression_elements.append(Paragraph(change_text, change_style))
+                        progression_elements.append('⇒')
+                        progression_elements.append(prices[i])
                 
-                # Combine dates with arrows
+                # Combine progression elements
+                progression_text = []
+                for elem in progression_elements:
+                    if isinstance(elem, str):
+                        progression_text.append(elem)
+                    elif isinstance(elem, Paragraph):
+                        progression_text.append(str(elem))
+                
+                # Add full progression
+                story.append(Paragraph(' '.join(progression_text), large_price_style))
+                
+                # Add dates
                 date_progression = ' ⇒ '.join(dates)
-                
-                # Add progression lines
-                progression_text = " ".join(progression_components)
-                story.append(Paragraph(progression_text, large_price_style))
                 story.append(Paragraph(date_progression, normal_style))
                 story.append(Spacer(1, 12))
             
