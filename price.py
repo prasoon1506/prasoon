@@ -48,15 +48,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 def generate_regional_price_trend_report(df):
-    """
-    Generate a detailed PDF report showing price trends for each region
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
-    """
     try:
         # Validate input DataFrame
         required_columns = ['Date', 'Region(District)', 'Inv.']
@@ -166,13 +157,13 @@ def generate_regional_price_trend_report(df):
                             )
                         else:
                             # Neutral change
-                            price_progression_parts.append('⇒')
+                            price_progression_parts.append('--')
                 
                 # Join the progression text
                 full_progression = " ".join(price_progression_parts)
                 
                 # Add date progression below
-                date_progression_text = " → ".join(dates)
+                date_progression_text = " ⇒ ".join(dates)
                 
                 # Add price progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
