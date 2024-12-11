@@ -47,14 +47,6 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
-import pandas as pd
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime, timedelta
 
 def generate_regional_price_trend_report(df):
     """
@@ -176,7 +168,7 @@ def generate_regional_price_trend_report(df):
                         change_values.append("0.00")
                 change_progression_text = "||   ||".join(change_values)
                 price_progression_text = " → ".join(prices)
-                date_progression_text = "||   ||.join(dates)
+                date_progression_text = "||   ||".join(dates)
                 
                 
                 # Add price progression, change progression, and date progression
