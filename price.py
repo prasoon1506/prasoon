@@ -156,13 +156,15 @@ def generate_regional_price_trend_report(df):
                             )
                         else:
                             # Neutral change
-                            price_progression_parts.append('→')
+                            price_progression_parts.append(
+                                f'<sup><size="8">{change:.0f}</font></sup>→'
+                            )
                 
                 # Join the progression text
                 full_progression = " ".join(price_progression_parts)
                 
                 # Add date progression below
-                date_progression_text = " ⇒ ".join(dates)
+                date_progression_text = " --- ".join(dates)
                 
                 # Add price progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
