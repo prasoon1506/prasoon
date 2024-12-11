@@ -147,13 +147,13 @@ def generate_regional_price_trend_report(df):
                         change = float(prices[i+1]) - float(prices[i])
                         if change > 0:
                             price_progression_parts.append(
-                                f'<sup><font color="green" size="8">+{change:.0f}</font></sup>→'
+                                f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
                             )
                             
                         elif change < 0:
                             # Red downward change
                             price_progression_parts.append(
-                                f'<sup><font color="red" size="8">{change:.0f}</font></sup>→'
+                                f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
                             )
                         else:
                             # Neutral change
