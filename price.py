@@ -46,8 +46,25 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
+import pandas as pd
+import io
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch
+from datetime import datetime, timedelta
 
 def generate_regional_price_trend_report(df):
+    """
+    Generate a detailed PDF report showing price trends for each region
+    
+    Args:
+    df (pandas.DataFrame): DataFrame containing price tracking data
+    
+    Returns:
+    io.BytesIO: PDF report buffer
+    """
     try:
         # Validate input DataFrame
         required_columns = ['Date', 'Region(District)', 'Inv.']
@@ -83,6 +100,24 @@ def generate_regional_price_trend_report(df):
             parent=styles['Heading3'], 
             textColor=colors.green,
             spaceAfter=6
+        )
+        positive_change_style = ParagraphStyle(
+            'PositiveChangeStyle',
+            parent=styles['Normal'],
+            textColor=colors.green,
+            fontSize=10
+        )
+        negative_change_style = ParagraphStyle(
+            'NegativeChangeStyle',
+            parent=styles['Normal'],
+            textColor=colors.red,
+            fontSize=10
+        )
+        date_style = ParagraphStyle(
+            'DateStyle',
+            parent=styles['Normal'],
+            textColor=colors.gray,
+            fontSize=9
         )
         normal_style = styles['Normal']
         
@@ -132,27 +167,43 @@ def generate_regional_price_trend_report(df):
                 
                 # Create price progression narrative
                 prices = data['Inv.'].apply(lambda x: f"{x:.2f}").tolist()
-                dates = data['Date'].dt.strftime('%d-%b').tolist()
+                dates = data['Date'].dt.strftime('%d-%b %Y').tolist()
                 
                 # Calculate changes between consecutive prices
-                change_values = [" "]  # First element is blank
+                change_texts = [" "]  # First element is blank
                 for i in range(1, len(prices)):
                     change = float(prices[i]) - float(prices[i-1])
                     if change > 0:
-                        change_values.append(f"+{change:.0f}")
+                        change_str = f"+{change:.2f}"
+                        change_texts.append(
+                            Paragraph(change_str, positive_change_style)
+                        )
                     elif change < 0:
-                        change_values.append(f"{change:.0f}")
+                        change_str = f"{change:.2f}"
+                        change_texts.append(
+                            Paragraph(change_str, negative_change_style)
+                        )
                     else:
-                        change_values.append("0")
+                        change_str = "0.00"
+                        change_texts.append(
+                            Paragraph(change_str, normal_style)
+                        )
                 
-                price_progression_text = " → ".join(prices)
-                date_progression_text = "       ".join(dates)
-                change_progression_text = "       ".join(change_values)
+                # Dates for each price point
+                date_texts = [Paragraph(date, date_style) for date in dates]
                 
-                # Add price progression, date progression, and change progression
-                story.append(Paragraph(change_progression_text, normal_style))
-                story.append(Paragraph(price_progression_text, normal_style))
-                story.append(Paragraph(date_progression_text, normal_style))
+                # Changes (without first blank element)
+                if len(change_texts) > 1:
+                    story.append(change_texts[1])
+                
+                # Prices
+                prices_text = ", ".join(prices)
+                story.append(Paragraph(prices_text, normal_style))
+                
+                # Dates
+                dates_text = ", ".join(dates)
+                story.append(Paragraph(dates_text, date_style))
+                
                 story.append(Spacer(1, 12))
             
             # Add pricing progression for each month period
