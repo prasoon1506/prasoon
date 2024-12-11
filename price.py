@@ -32,6 +32,13 @@ from datetime import datetime, timedelta
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import green, red, black
 
+import io
+from datetime import datetime, timedelta
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 def generate_regional_price_trend_report(df):
     """
     Generate a detailed PDF report showing price trends for each region
@@ -81,14 +88,20 @@ def generate_regional_price_trend_report(df):
         change_style_positive = ParagraphStyle(
             'ChangeStylePositive',
             parent=styles['Normal'],
-            textColor=green,
+            textColor=colors.green,
             alignment=1
         )
         change_style_negative = ParagraphStyle(
             'ChangeStyleNegative',
             parent=styles['Normal'],
-            textColor=red,
+            textColor=colors.red,
             alignment=1
+        )
+        date_style = ParagraphStyle(
+            'DateStyle',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=6
         )
         normal_style = styles['Normal']
         
@@ -135,10 +148,13 @@ def generate_regional_price_trend_report(df):
                 
                 # Create price progression narrative
                 prices = []
+                dates = []
                 for i, row in data.iterrows():
                     prices.append(f"{row['Inv.']:.2f}")
+                    dates.append(row['Date'].strftime('%d-%b'))
                 
                 price_progression_text = " → ".join(prices)
+                date_progression_text = " → ".join(dates)
                 
                 # Add change and direction for intermediate steps
                 for i in range(1, len(data)):
@@ -160,6 +176,7 @@ def generate_regional_price_trend_report(df):
                 
                 # Create a single paragraph with the price progression
                 story.append(Paragraph(price_progression_text, normal_style))
+                story.append(Paragraph(date_progression_text, date_style))
                 story.append(Spacer(1, 12))
             
             # Add pricing progression for each month period
