@@ -39,21 +39,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import pandas as pd
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime, timedelta
-import pandas as pd
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime, timedelta
 import pandas as pd
 import io
 from reportlab.lib.pagesizes import letter
@@ -121,12 +106,6 @@ def generate_regional_price_trend_report(df):
             textColor=colors.red,
             fontSize=10
         )
-        date_style = ParagraphStyle(
-            'DateStyle',
-            parent=styles['Normal'],
-            textColor=colors.gray,
-            fontSize=9
-        )
         normal_style = styles['Normal']
         
         # Content to be added to PDF
@@ -175,39 +154,38 @@ def generate_regional_price_trend_report(df):
                 
                 # Create price progression narrative
                 prices = data['Inv.'].apply(lambda x: f"{x:.2f}").tolist()
-                dates = data['Date'].dt.strftime('%d-%b %Y').tolist()
+                dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Calculate changes between consecutive prices
-                change_texts = [" "]  # First element is blank
+                change_elements = [" "]  # First element is blank
                 for i in range(1, len(prices)):
                     change = float(prices[i]) - float(prices[i-1])
                     if change > 0:
                         change_str = f"+{change:.2f}"
-                        change_texts.append(change_str)
+                        change_elements.append(
+                            Paragraph(change_str, positive_change_style)
+                        )
                     elif change < 0:
                         change_str = f"{change:.2f}"
-                        change_texts.append(change_str)
+                        change_elements.append(
+                            Paragraph(change_str, negative_change_style)
+                        )
                     else:
                         change_str = "0.00"
-                        change_texts.append(change_str)
-                
-                # Prepare change progression
-                if len(change_texts) > 1:
-                    change_progression_text = "   ".join(change_texts[1:])
-                    change_progression_paragraph = Paragraph(change_progression_text, 
-                        positive_change_style if "+" in change_progression_text 
-                        else negative_change_style if "-" in change_progression_text 
-                        else normal_style)
-                    story.append(change_progression_paragraph)
+                        change_elements.append(
+                            Paragraph(change_str, normal_style)
+                        )
                 
                 # Price progression
-                price_progression_text = "   ".join(prices)
+                price_progression_text = " → ".join(prices)
                 story.append(Paragraph(price_progression_text, normal_style))
                 
                 # Date progression
-                date_progression_text = "   ".join(dates)
-                story.append(Paragraph(date_progression_text, date_style))
+                date_progression_text = " → ".join(dates)
+                story.append(Paragraph(date_progression_text, normal_style))
                 
+                # Change progression (with color-coded changes)
+                story.extend(change_elements[1:])  # Skip the first blank element
                 story.append(Spacer(1, 12))
             
             # Add pricing progression for each month period
@@ -261,18 +239,7 @@ def generate_regional_price_trend_report(df):
         raise
 
 def save_regional_price_trend_report(df):
-    """
-    Save the regional price trend report as a PDF
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
-    """
     return generate_regional_price_trend_report(df)
-
-
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
