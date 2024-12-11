@@ -478,7 +478,7 @@ def main():
                       with col_last_1:
                        st.metric(f"Total No. of Price Change in (Last Month)", len(last_month_data))
                       with col_last_2:
-                       st.metric("Total Change in NOD(Last Month)", last_month_data['MoM Change'].sum())
+                       st.metric("Total Change in NOD(Last Month)(in Rs.)", last_month_data['MoM Change'].sum())
                 else:
                      st.info(f"No data found for last month in {selected_region_analysis}")
                 st.markdown("#### Current Month Data")
@@ -497,7 +497,7 @@ def main():
                      with col_curr_1:
                         st.metric("Total No. of Price Change in (Current Month)", len(current_month_data))
                      with col_curr_2:
-                         st.metric("Total Change in NOD(Current Month)", current_month_data['MoM Change'].sum())
+                         st.metric("Total Change in NOD(Current Month)(in Rs.)", current_month_data['MoM Change'].sum())
                 else:
                       st.info(f"No data found for current month in {selected_region_analysis}")
                 region_analysis_df = df[df['Region(District)'] == selected_region_analysis]
