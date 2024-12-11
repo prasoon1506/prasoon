@@ -174,10 +174,10 @@ def generate_regional_price_trend_report(df):
                         change_values.append(f"<font color='red'>{change:.2f}</font>")
                     else:
                         change_values.append("0.00")
-                
+                change_progression_text = "||   ||".join(change_values)
                 price_progression_text = " → ".join(prices)
-                date_progression_text = " → ".join(dates)
-                change_progression_text = " → ".join(change_values)
+                date_progression_text = "||   ||.join(dates)
+                
                 
                 # Add price progression, change progression, and date progression
                 story.append(Paragraph(price_progression_text, normal_style))
