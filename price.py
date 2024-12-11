@@ -179,7 +179,7 @@ def generate_regional_price_trend_report(df):
                     prices.append(f"{row['Inv.']:.2f}")
                     dates.append(row['Date'].strftime('%d-%b'))
                     
-                    if i > 0:
+                    if i > 1:
                         change = row['Inv.'] - data.iloc[i-1]['Inv.']
                         if change > 0:
                             change_values.append(f"+{change:.2f}")
