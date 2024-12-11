@@ -55,14 +55,6 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
-import pandas as pd
-import io
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
-from datetime import datetime, timedelta
 
 def generate_regional_price_trend_report(df):
     """
@@ -110,14 +102,14 @@ def generate_regional_price_trend_report(df):
             textColor=colors.green,
             spaceAfter=6
         )
-        green_change_style = ParagraphStyle(
-            'GreenChangeStyle',
+        green_style = ParagraphStyle(
+            'GreenStyle',
             parent=styles['Normal'],
             textColor=colors.green,
             fontSize=10
         )
-        red_change_style = ParagraphStyle(
-            'RedChangeStyle',
+        red_style = ParagraphStyle(
+            'RedStyle',
             parent=styles['Normal'],
             textColor=colors.red,
             fontSize=10
@@ -173,32 +165,23 @@ def generate_regional_price_trend_report(df):
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
                 # Calculate changes between consecutive prices
-                changes = [" "]  # First element is blank
+                change_values = [" "]  # First element is blank
                 for i in range(1, len(prices)):
                     change = float(prices[i]) - float(prices[i-1])
-                    changes.append(change)
-                
-                # Prices progression line
-                price_progression_text = " → ".join(prices)
-                story.append(Paragraph(price_progression_text, normal_style))
-                
-                # Changes progression line
-                change_progression = []
-                for change in changes:
-                    if change == " ":
-                        change_progression.append(" ")
-                    elif change > 0:
-                        change_progression.append(f"+{change:.2f}")
-                        story.append(Paragraph(f"+{change:.2f}", green_change_style))
+                    if change > 0:
+                        change_values.append(f"<font color='green'>+{change:.2f}</font>")
                     elif change < 0:
-                        change_progression.append(f"{change:.2f}")
-                        story.append(Paragraph(f"{change:.2f}", red_change_style))
+                        change_values.append(f"<font color='red'>{change:.2f}</font>")
                     else:
-                        change_progression.append("0.00")
-                        story.append(Paragraph("0.00", normal_style))
+                        change_values.append("0.00")
                 
-                # Dates progression line
+                price_progression_text = " → ".join(prices)
                 date_progression_text = " → ".join(dates)
+                change_progression_text = " → ".join(change_values)
+                
+                # Add price progression, change progression, and date progression
+                story.append(Paragraph(price_progression_text, normal_style))
+                story.append(Paragraph(change_progression_text, normal_style))
                 story.append(Paragraph(date_progression_text, normal_style))
                 story.append(Spacer(1, 12))
             
