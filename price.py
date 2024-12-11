@@ -93,18 +93,16 @@ def generate_regional_price_trend_report(df):
             textColor=colors.green,
             spaceAfter=6
         )
-        green_style = ParagraphStyle(
-            'GreenStyle',
+        
+        # New style for small change text above arrow
+        small_change_style = ParagraphStyle(
+            'SmallChangeStyle',
             parent=styles['Normal'],
-            textColor=colors.green,
-            fontSize=10
+            fontSize=8,
+            alignment=1,  # Center alignment
+            spaceAfter=2
         )
-        red_style = ParagraphStyle(
-            'RedStyle',
-            parent=styles['Normal'],
-            textColor=colors.red,
-            fontSize=10
-        )
+        
         normal_style = styles['Normal']
         
         # Create larger font style for price progression
@@ -112,6 +110,7 @@ def generate_regional_price_trend_report(df):
             'LargePriceStyle',
             parent=styles['Normal'],
             fontSize=15,
+            alignment=1,  # Center alignment
             spaceAfter=6
         )
         
@@ -157,12 +156,12 @@ def generate_regional_price_trend_report(df):
                 prices = data['Inv.'].apply(lambda x: f"{x:.0f}").tolist()
                 dates = data['Date'].dt.strftime('%d-%b').tolist()
                 
-                # Create price progression with changes on arrows
-                price_progression_lines = []
+                # Create price progression with changes above arrows
+                progression_components = []
                 for i in range(len(prices)):
                     if i == 0:
                         # First price
-                        price_progression_lines.append(prices[i])
+                        progression_components.append(prices[i])
                     else:
                         # Calculate change
                         change = float(prices[i]) - float(prices[i-1])
@@ -175,18 +174,18 @@ def generate_regional_price_trend_report(df):
                         else:
                             change_text = '0'
                         
-                        # Combine previous price, change, and current price with long arrow
-                        price_progression_lines.append(
-                            f'{change_text} ⇒ {prices[i]}'
-                        )
+                        # Add change as a separate small paragraph
+                        story.append(Paragraph(change_text, small_change_style))
+                        
+                        # Combine previous price and current price with long arrow
+                        progression_components.append('⇒')
+                        progression_components.append(prices[i])
                 
                 # Combine dates with arrows
                 date_progression = ' ⇒ '.join(dates)
                 
-                # Add price and date progressions
-                progression_text = " ⇒ ".join(price_progression_lines)
-                
                 # Add progression lines
+                progression_text = " ".join(progression_components)
                 story.append(Paragraph(progression_text, large_price_style))
                 story.append(Paragraph(date_progression, normal_style))
                 story.append(Spacer(1, 12))
@@ -227,8 +226,6 @@ def save_regional_price_trend_report(df):
     io.BytesIO: PDF report buffer
     """
     return generate_regional_price_trend_report(df)
-
-
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
