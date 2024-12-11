@@ -134,16 +134,16 @@ def generate_regional_price_trend_report(df):
 
                         # Determine change direction and color
                         if change > 0:
-                            change_text = f"+{change:.2f} ↑"
+                            change_text = f" ↑ {change:.2f}"
                             change_color = green
                         elif change < 0:
-                            change_text = f"{change:.2f} ↓"
+                            change_text = f" ↓ {abs(change):.2f}"
                             change_color = red
                         else:
-                            change_text = "→"
+                            change_text = " → 0.00"
                             change_color = black
 
-                        # Add change paragraph
+                        # Add change text
                         price_progression_text.append(Paragraph(
                             change_text,
                             ParagraphStyle(
@@ -155,7 +155,7 @@ def generate_regional_price_trend_report(df):
                         ))
 
                 # Create a single paragraph with the price progression
-                full_progression_text = " ".join(str(item) for item in price_progression_text)
+                full_progression_text = "  ".join(str(item) for item in price_progression_text)
                 story.append(Paragraph(full_progression_text, normal_style))
                 story.append(Spacer(1, 12))
 
@@ -208,6 +208,7 @@ def generate_regional_price_trend_report(df):
     except Exception as e:
         print(f"Error generating report: {e}")
         raise
+
 def save_regional_price_trend_report(df):
     return generate_regional_price_trend_report(df)
 def convert_dataframe_to_pdf(df, filename):
