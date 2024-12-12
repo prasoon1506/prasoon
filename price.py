@@ -316,8 +316,8 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Prepare buffer for PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=30, leftMargin=30, 
-                                topMargin=30, bottomMargin=30)
+                                rightMargin=2, leftMargin=2, 
+                                topMargin=30, bottomMargin=10)
         
         # Get sample styles
         styles = getSampleStyleSheet()
@@ -361,41 +361,33 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Get unique regions
         regions = df['Region(District)'].unique()
         
-        # Generate report for each region
-        for region in regions:
-            region_df = df[df['Region(District)'] == region].copy()
+        # Generate report with two regions per page
+        for i in range(0, len(regions), 2):
+            # Prepare to store two regions on this page
+            regions_on_page = regions[i:i+2]
             
-            # Create a temporary story for this region
-            region_story = []
+            for region in regions_on_page:
+                region_df = df[df['Region(District)'] == region].copy()
+                story.append(Paragraph(f"{region}", region_style))
+                story.append(Spacer(1, 12))
+                
+                # Create comprehensive metric progression for different metrics
+                create_comprehensive_metric_progression(
+                    story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
+                )
+                
+                create_comprehensive_metric_progression(
+                    story, region_df, current_date, last_month, 'Net', 'NOD', styles
+                )
+                
+                # Create WSP progression if WSP data is available
+                create_wsp_progression(story, wsp_df, region, styles)
+                
+                # Add spacer between regions, but not a page break if two regions fit
+                if len(regions_on_page) > 1:
+                    story.append(Spacer(1, 20))
             
-            # Add region name
-            region_story.append(Paragraph(f"{region}", region_style))
-            region_story.append(Spacer(1, 12))
-            
-            # Create comprehensive metric progression for different metrics
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
-            )
-            
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'Net', 'NOD', styles
-            )
-            
-            # Create WSP progression if WSP data is available
-            create_wsp_progression(region_story, wsp_df, region, styles)
-            
-            # Create a temporary PDF to check page count
-            region_buffer = io.BytesIO()
-            region_doc = SimpleDocTemplate(region_buffer, pagesize=letter, 
-                                           rightMargin=30, leftMargin=30, 
-                                           topMargin=30, bottomMargin=30)
-            region_doc.build(region_story)
-            
-            # If region content fits on one page, add to main story
-            # If not, it will automatically create a page break
-            story.extend(region_story)
-            
-            # Add page break between regions
+            # Add page break after processing regions on this page
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         
         # Build PDF
