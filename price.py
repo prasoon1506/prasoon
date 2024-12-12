@@ -135,27 +135,27 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             f'{title}MonthStyle', 
             parent=styles['Normal'], 
             textColor=colors.darkgreen,
-            fontSize=10,
+            fontSize=8,
             spaceAfter=4
         )
         
         normal_style = ParagraphStyle(
             f'{title}NormalStyle',
             parent=styles['Normal'],
-            fontSize=9
+            fontSize=8
         )
         
         large_price_style = ParagraphStyle(
             f'{title}LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=8,
             spaceAfter=4
         )
         
         total_change_style = ParagraphStyle(
             f'{title}TotalChangeStyle',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=8,
             textColor=colors.brown,
             alignment=TA_LEFT,
             spaceAfter=6,
@@ -430,7 +430,14 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             create_comprehensive_metric_progression(
                 region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
             )
+            # Secondary metrics with smaller styling
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True
+            )
             
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True
+            )
             
             
             # Return to primary styling for Net metric
