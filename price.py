@@ -66,48 +66,39 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import streamlit as st
+import pandas as pd
 
 def get_wsp_data():
     """
-    Prompt user to include WSP data and upload WSP file
+    Use Streamlit file uploader to include WSP data
     
     Returns:
-    pandas.DataFrame or None: WSP DataFrame if user chooses to include, else None
+    pandas.DataFrame or None: WSP DataFrame if user uploads, else None
     """
-    # Create a root window but keep it hidden
-    root = tk.Tk()
-    root.withdraw()
-    
-    # Ask if user wants to include WSP data
-    include_wsp = messagebox.askyesno(
-        "WSP Data", 
-        "Do you want to include WSP (Wholesale Price) data in the report?"
-    )
+    include_wsp = st.checkbox("Include WSP (Wholesale Price) Data")
     
     if include_wsp:
-        # Open file dialog to select WSP file
-        wsp_file_path = filedialog.askopenfilename(
-            title="Select WSP Data File",
-            filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")]
-        )
+        wsp_file = st.file_uploader("Upload WSP Data File", type=['csv', 'xlsx'])
         
-        if wsp_file_path:
+        if wsp_file is not None:
             try:
                 # Read the WSP file
-                if wsp_file_path.endswith('.csv'):
-                    wsp_df = pd.read_csv(wsp_file_path)
+                if wsp_file.name.endswith('.csv'):
+                    wsp_df = pd.read_csv(wsp_file)
                 else:
-                    wsp_df = pd.read_excel(wsp_file_path)
+                    wsp_df = pd.read_excel(wsp_file)
                 
                 # Validate WSP DataFrame
                 required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
                 for col in required_columns:
                     if col not in wsp_df.columns:
-                        raise ValueError(f"Missing required WSP column: {col}")
+                        st.error(f"Missing required WSP column: {col}")
+                        return None
                 
                 return wsp_df
             except Exception as e:
-                messagebox.showerror("Error", f"Could not read WSP file: {e}")
+                st.error(f"Could not read WSP file: {e}")
                 return None
     
     return None
