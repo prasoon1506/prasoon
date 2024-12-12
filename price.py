@@ -20,7 +20,6 @@ import pandas as pd
 import io
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import streamlit as st
-
 def get_start_data_point(df, reference_date):
     first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == reference_date.month) & (df['Date'].dt.day == 1)]
     if not first_day_data.empty:
