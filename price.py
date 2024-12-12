@@ -244,7 +244,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                 
                 story.append(Paragraph(total_change_text, total_change_style))
             
-            story.append(Spacer(1, 12))
+            story.append(Spacer(1, 8))
         
         # Helper function to create WSP progression
         def create_wsp_progression(wsp_df, region):
@@ -259,7 +259,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             
             if region_wsp.empty:
                 story.append(Paragraph(f"No WSP data available for {region}", normal_style))
-                story.append(Spacer(1, 12))
+                story.append(Spacer(1, 8))
                 return
             
             # Extract WSP values for November and December weeks
@@ -316,7 +316,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                 
                 story.append(Paragraph(total_change_text, total_change_style))
             
-            story.append(Spacer(1, 12))
+            story.append(Spacer(1, 8))
         
         # Initialize story for PDF
         story = []
