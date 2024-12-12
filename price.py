@@ -134,7 +134,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             f'{title}MonthStyle', 
             parent=styles['Normal'], 
             textColor=colors.darkgreen,
-            fontSize=10,
+            fontSize=12,
             spaceAfter=4
         )
         
@@ -147,14 +147,14 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         large_price_style = ParagraphStyle(
             f'{title}LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=12,
+            fontSize=14,
             spaceAfter=4
         )
         
         total_change_style = ParagraphStyle(
             f'{title}TotalChangeStyle',
             parent=styles['Normal'],
-            fontSize=10,
+            fontSize=14,
             textColor=colors.brown,
             alignment=TA_LEFT,
             spaceAfter=6,
@@ -401,7 +401,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                    'SubtitleStyle', 
                                    parent=styles['Normal'], 
                                    fontSize=14, 
-                                   textColor=colors.darkgray,
+                                   textColor=colors.red,
                                    alignment=TA_CENTER,
                                    spaceAfter=20
                                )))
