@@ -1,6 +1,3 @@
-import streamlit as st
-import pandas as pd
-import io
 import warnings
 import plotly.express as fx
 import plotly.graph_objs as go
@@ -8,514 +5,187 @@ import plotly.io as pio
 import numpy as np
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak,Paragraph, Spacer
 from datetime import datetime as dt
-import pandas as pd
-import io
 from reportlab.platypus import KeepTogether
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 from reportlab.lib.units import inch
 from datetime import datetime, timedelta
 from reportlab.pdfgen import canvas
-from reportlab.lib.colors import green, red, black
-import pandas as pd
-import io
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 from reportlab.lib.units import inch
-from datetime import datetime, timedelta
-from reportlab.pdfgen import canvas
 from reportlab.lib.colors import green, red, black
 import calendar
-import io
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
 import pandas as pd
 import io
-import pandas as pd
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-import pandas as pd
-import io
-import datetime
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
-import pandas as pd
-import io
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-
-import io
-import pandas as pd
-import streamlit as st
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer
-)
-from reportlab.lib.styles import (
-    getSampleStyleSheet, 
-    ParagraphStyle
-)
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import pandas as pd
-import io
-from datetime import datetime, timedelta
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import streamlit as st
 
 def get_start_data_point(df, reference_date):
-    """
-    Get the start data point for the price progression
-    Prioritizes 1st of the month, falls back to last available data of previous month
-    """
-    # Try to get data for the first day of the month
-    first_day_data = df[
-        (df['Date'].dt.year == reference_date.year) & 
-        (df['Date'].dt.month == reference_date.month) & 
-        (df['Date'].dt.day == 1)
-    ]
-    
+    first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == reference_date.month) & (df['Date'].dt.day == 1)]
     if not first_day_data.empty:
         return first_day_data.iloc[0]
-    
-    # If no first day data, get the last data point of the previous month
     prev_month = reference_date.replace(day=1) - timedelta(days=1)
-    last_data_of_prev_month = df[
-        (df['Date'].dt.year == prev_month.year) & 
-        (df['Date'].dt.month == prev_month.month)
-    ]
-    
+    last_data_of_prev_month = df[(df['Date'].dt.year == prev_month.year) & (df['Date'].dt.month == prev_month.month)]
     if not last_data_of_prev_month.empty:
         return last_data_of_prev_month.iloc[-1]
-    
     return None
 def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
-    """
-    Create comprehensive metric progression section for a specific metric
-    
-    Args:
-    - story: The PDF story to append content to
-    - region_df: DataFrame for the specific region
-    - current_date: Current date
-    - last_month: Last month's date
-    - metric_column: Column name for the metric
-    - title: Title of the metric
-    - styles: ReportLab styles
-    - is_secondary_metric: Flag to adjust styling for secondary metrics
-    """
     if is_secondary_metric:
-        month_style = ParagraphStyle(
-            f'{title}MonthStyle', 
-            parent=styles['Normal'], 
-            textColor=colors.darkgreen,
-            fontSize=12,
-            spaceAfter=4
-        )
-        
-        normal_style = ParagraphStyle(
-            f'{title}NormalStyle',
-            parent=styles['Normal'],
-            fontSize=12
-        )
-        
-        total_change_style = ParagraphStyle(
-            f'{title}TotalChangeStyle',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=colors.brown,
-            alignment=TA_LEFT,
-            spaceAfter=4
-        )
+        month_style = ParagraphStyle(f'{title}MonthStyle',parent=styles['Normal'],textColor=colors.darkgreen,fontSize=12,spaceAfter=4)
+        normal_style = ParagraphStyle(f'{title}NormalStyle',parent=styles['Normal'],fontSize=12)
+        total_change_style = ParagraphStyle(f'{title}TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=4)
     else:
-        month_style = ParagraphStyle(
-            'MonthStyle', 
-            parent=styles['Heading3'], 
-            textColor=colors.green,
-            spaceAfter=6
-        )
-        
+        month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
         normal_style = styles['Normal']
-        
-        large_price_style = ParagraphStyle(
-            'LargePriceStyle',
-            parent=styles['Normal'],
-            fontSize=14,
-            spaceAfter=6
-        )
-        
-        total_change_style = ParagraphStyle(
-            'TotalChangeStyle',
-            parent=styles['Normal'],
-            fontSize=12,
-            textColor=colors.brown,
-            alignment=TA_LEFT,
-            spaceAfter=14,
-            fontName='Helvetica-Bold'
-        )
-    
-    # For primary metrics, keep existing progression title
+        large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
+        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
     if not is_secondary_metric:
         story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
-    
-    # Get the start data point (either 1st of last month or last available data from previous month)
     start_data_point = get_start_data_point(region_df, last_month)
-    
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
-    
-    # Prepare the data for progression
-    progression_df = region_df[
-        (region_df['Date'] >= start_data_point['Date']) & 
-        (region_df['Date'] <= current_date)
-    ].copy().sort_values('Date')
-    
+    progression_df = region_df[(region_df['Date'] >= start_data_point['Date']) & (region_df['Date'] <= current_date)].copy().sort_values('Date')
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
-    
-    # For primary metrics, keep existing detailed progression
     if not is_secondary_metric:
-        # Prepare metric values and dates
         metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
         dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
-        
-        # Prepare metric progression parts
         metric_progression_parts = []
         for i in range(len(metric_values)):
-            # Add metric value
             metric_progression_parts.append(metric_values[i])
-            
-            # Add change annotation on arrow for all except the last value
             if i < len(metric_values) - 1:
                 change = float(metric_values[i+1]) - float(metric_values[i])
                 if change > 0:
-                    metric_progression_parts.append(
-                        f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
-                    )
+                    metric_progression_parts.append(f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→')
                 elif change < 0:
-                    # Red downward change
-                    metric_progression_parts.append(
-                        f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
-                    )
+                    metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
                 else:
-                    # Neutral change
-                    metric_progression_parts.append(
-                        f'<sup><font size="8">00</font></sup>→'
-                    )
-        
-        # Join the progression parts
+                    metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
         full_progression = " ".join(metric_progression_parts)
         date_progression_text = " ----- ".join(dates)
-        
-        # Add metric progression with larger font
         story.append(Paragraph(full_progression, large_price_style))
         story.append(Paragraph(date_progression_text, normal_style))
-    
-    # Calculate total change
     if len(progression_df[metric_column]) > 1:
         start_value = progression_df[metric_column].iloc[0]
         end_value = progression_df[metric_column].iloc[-1]
         total_change = end_value - start_value
-        
         if is_secondary_metric:
-            # For secondary metrics, just add a simple net change line
             if total_change == 0:
                 total_change_text = f"{title}: No Change"
             else:
                 total_change_text = f"{title}: {total_change:+.0f} Rs."
-            
             story.append(Paragraph(total_change_text, total_change_style))
         else:
-            # For primary metrics, use existing detailed change
             if total_change == 0:
                 total_change_text = f"Net Change in {title}: 0 Rs."
             else:
                 total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
-            
             story.append(Paragraph(total_change_text, total_change_style))
-    
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
 def create_wsp_progression(story, wsp_df, region, styles):
-    """
-    Create WSP (Wholesale Price) progression section for a specific region
-    """
     normal_style = styles['Normal']
-    month_style = ParagraphStyle(
-        'MonthStyle', 
-        parent=styles['Heading3'], 
-        textColor=colors.green,
-        spaceAfter=6
-    )
-    
-    large_price_style = ParagraphStyle(
-        'LargePriceStyle',
-        parent=styles['Normal'],
-        fontSize=14,
-        spaceAfter=6
-    )
-    
-    total_change_style = ParagraphStyle(
-        'TotalChangeStyle',
-        parent=styles['Normal'],
-        fontSize=12,
-        textColor=colors.brown,
-        alignment=TA_LEFT,
-        spaceAfter=14,
-        fontName='Helvetica-Bold'
-    )
-    
+    month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
+    large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
+    total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
     if wsp_df is None:
         return
-    
-    # Get WSP data for the specific region
     region_wsp = wsp_df[wsp_df['Region(District)'] == region]
-    
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}", normal_style))
         story.append(Spacer(1, 0))
         return
-    
-    # Extract WSP values for November and December weeks
     wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
-    
-    # Prepare metric values
     metric_values = region_wsp[wsp_columns].values.flatten().tolist()
-    
-    # Prepare week labels
     week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec']
-    
-    # Add WSP Progression title
     story.append(Paragraph(f"WSP Progression from November to December 2024:-", month_style))
-    
-    # Metric progression parts
     metric_progression_parts = []
     for i in range(len(metric_values)):
-        # Add metric value
         metric_progression_parts.append(f"{metric_values[i]:.0f}")
-        
-        # Add change annotation on arrow for all except the last value
         if i < len(metric_values) - 1:
             change = float(metric_values[i+1]) - float(metric_values[i])
             if change > 0:
-                metric_progression_parts.append(
-                    f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
-                )
+                metric_progression_parts.append(f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→')
             elif change < 0:
-                # Red downward change
-                metric_progression_parts.append(
-                    f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
-                )
+                metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
             else:
-                # Neutral change
-                metric_progression_parts.append(
-                    f'<sup><font size="8">00</font></sup>→'
-                )
-    
-    # Join the progression parts
+                metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
     full_progression = " ".join(metric_progression_parts)
     week_progression_text = " -- ".join(week_labels)
-    
-    # Add metric progression with larger font
     story.append(Paragraph(full_progression, large_price_style))
     story.append(Paragraph(week_progression_text, normal_style))
-    
-    # Calculate total change
     if len(metric_values) > 1:
         total_change = float(metric_values[-1]) - float(metric_values[0])
         if total_change == 0:
             total_change_text = f"Net Change in WSP: 0 Rs."
         else:
             total_change_text = f"Net Change in WSP: {total_change:+.0f} Rs."
-        
         story.append(Paragraph(total_change_text, total_change_style))
-    
     story.append(Spacer(1, 0))
 def generate_regional_price_trend_report(df, wsp_df=None):
     try:
-        # Validate input DataFrame
         required_columns = ['Date', 'Region(District)', 'Inv.', 'Net', 'RD', 'STS']
         for col in required_columns:
             if col not in df.columns:
                 raise ValueError(f"Missing required column: {col}")
-
-        # Ensure Date column is datetime
         df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
-        
-        # Sort DataFrame by Region and Date
         df = df.sort_values(['Region(District)', 'Date'])
-        
-        # Prepare buffer for PDF with adjusted margins
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=2, leftMargin=2, 
-                                topMargin=5, bottomMargin=2)
-        
-        # Get sample styles
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=2, leftMargin=2, topMargin=5, bottomMargin=2)
         styles = getSampleStyleSheet()
-        
-        # Custom styles with smaller font sizes
-        title_style = ParagraphStyle(
-            'TitleStyle', 
-            parent=styles['Title'], 
-            fontSize=20, 
-            textColor=colors.darkblue,
-            alignment=TA_CENTER,
-            spaceAfter=10
-        )
-        region_style = ParagraphStyle(
-            'RegionStyle', 
-            parent=styles['Heading2'], 
-            textColor=colors.blue,
-            spaceAfter=8,
-            fontSize=14
-        )
-        
-        # Initialize story for PDF
+        title_style = ParagraphStyle('TitleStyle',parent=styles['Title'],fontSize=20, textColor=colors.darkblue,alignment=TA_CENTER,spaceAfter=10)
+        region_style = ParagraphStyle('RegionStyle',parent=styles['Heading2'], textColor=colors.blue,spaceAfter=8,fontSize=14)
         story = []
-        
-        # Aesthetic title with a more professional look
         story.append(Paragraph("Regional Price Trend Analysis Report", title_style))
-        story.append(Paragraph("Comprehensive Price Movement Insights", 
-                               ParagraphStyle(
-                                   'SubtitleStyle', 
-                                   parent=styles['Normal'], 
-                                   fontSize=12, 
-                                   textColor=colors.red,
-                                   alignment=TA_CENTER,
-                                   spaceAfter=10
-                               )))
+        story.append(Paragraph("Comprehensive Price Movement Insights", ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=12, textColor=colors.red,alignment=TA_CENTER,spaceAfter=10)))
         story.append(Spacer(1, 0))
-        
-        # Current and last month calculation
         current_date = datetime.now()
         last_month = current_date.replace(day=1) - timedelta(days=1)
-        
-        # Get unique regions
         regions = df['Region(District)'].unique()
-        
-        # Generate report for all regions
         for region in regions:
-            # Create a KeepTogether frame to prevent page breaks within region content
             region_story = []
             region_df = df[df['Region(District)'] == region].copy()
-            
-            # Add region name
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
-            
-            # Create comprehensive metric progression for different metrics
-            # Primary metrics first
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
-            )
-            # Secondary metrics with smaller styling
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True
-            )
-            
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True
-            )
-            
-            
-            # Return to primary styling for Net metric
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'Net', 'NOD', styles
-            )
-            
-            # Create WSP progression if WSP data is available
+            create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
+            create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
+            create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
+            create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
             create_wsp_progression(region_story, wsp_df, region, styles)
-            
-            # Wrap region content in KeepTogether to prevent page breaks
             story.append(KeepTogether(region_story))
-            
-            # Add page break after each region
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
-        
-        # Build PDF
         doc.build(story)
-        
-        # Reset buffer position
         buffer.seek(0)
         return buffer
-    
     except Exception as e:
         print(f"Error generating report: {e}")
         raise
 def get_wsp_data():
-    """
-    Get WSP data from file upload in Streamlit
-    """
     include_wsp = st.checkbox("Include WSP (Wholesale Price) Data")
-    
     if include_wsp:
         wsp_file = st.file_uploader("Upload WSP Data File", type=['csv', 'xlsx'])
-        
         if wsp_file is not None:
             try:
-                # Read the WSP file
                 if wsp_file.name.endswith('.csv'):
                     wsp_df = pd.read_csv(wsp_file)
                 else:
                     wsp_df = pd.read_excel(wsp_file)
-                
-                # Validate WSP DataFrame
                 required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
                 for col in required_columns:
                     if col not in wsp_df.columns:
                         st.error(f"Missing required WSP column: {col}")
                         return None
-                
                 return wsp_df
             except Exception as e:
                 st.error(f"Could not read WSP file: {e}")
                 return None
-    
     return None
-
 def save_regional_price_trend_report(df):
-    """
-    Save the regional price trend report as a PDF
-    
-    Args:
-    df (pandas.DataFrame): DataFrame containing price tracking data
-    
-    Returns:
-    io.BytesIO: PDF report buffer
-    """
-    # First, get WSP data (if user wants to include)
     wsp_df = get_wsp_data()
-    
-    # Generate report with optional WSP data
     return generate_regional_price_trend_report(df, wsp_df)
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
