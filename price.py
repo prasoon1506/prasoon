@@ -67,7 +67,72 @@ def get_competitive_brands_wsp_data():
                 return None
     
     return None
-
+def get_start_data_point(df, reference_date):
+    first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == reference_date.month) & (df['Date'].dt.day == 1)]
+    if not first_day_data.empty:
+        return first_day_data.iloc[0]
+    prev_month = reference_date.replace(day=1) - timedelta(days=1)
+    last_data_of_prev_month = df[(df['Date'].dt.year == prev_month.year) & (df['Date'].dt.month == prev_month.month)]
+    if not last_data_of_prev_month.empty:
+        return last_data_of_prev_month.iloc[-1]
+    return None
+def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
+    if is_secondary_metric:
+        month_style = ParagraphStyle(f'{title}MonthStyle',parent=styles['Normal'],textColor=colors.darkgreen,fontSize=12,spaceAfter=4)
+        normal_style = ParagraphStyle(f'{title}NormalStyle',parent=styles['Normal'],fontSize=12)
+        total_change_style = ParagraphStyle(f'{title}TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=4)
+    else:
+        month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
+        normal_style = styles['Normal']
+        large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
+        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
+    if not is_secondary_metric:
+        story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
+    start_data_point = get_start_data_point(region_df, last_month)
+    if start_data_point is None:
+        story.append(Paragraph("No data available for this period", normal_style))
+        story.append(Spacer(1, 0 if is_secondary_metric else 0))
+        return
+    progression_df = region_df[(region_df['Date'] >= start_data_point['Date']) & (region_df['Date'] <= current_date)].copy().sort_values('Date')
+    if progression_df.empty:
+        story.append(Paragraph("No data available for this period", normal_style))
+        story.append(Spacer(1, 0 if is_secondary_metric else 0))
+        return
+    if not is_secondary_metric:
+        metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
+        dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
+        metric_progression_parts = []
+        for i in range(len(metric_values)):
+            metric_progression_parts.append(metric_values[i])
+            if i < len(metric_values) - 1:
+                change = float(metric_values[i+1]) - float(metric_values[i])
+                if change > 0:
+                    metric_progression_parts.append(f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→')
+                elif change < 0:
+                    metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
+                else:
+                    metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
+        full_progression = " ".join(metric_progression_parts)
+        date_progression_text = " ----- ".join(dates)
+        story.append(Paragraph(full_progression, large_price_style))
+        story.append(Paragraph(date_progression_text, normal_style))
+    if len(progression_df[metric_column]) > 1:
+        start_value = progression_df[metric_column].iloc[0]
+        end_value = progression_df[metric_column].iloc[-1]
+        total_change = end_value - start_value
+        if is_secondary_metric:
+            if total_change == 0:
+                total_change_text = f"{title}: No Change"
+            else:
+                total_change_text = f"{title}: {total_change:+.0f} Rs."
+            story.append(Paragraph(total_change_text, total_change_style))
+        else:
+            if total_change == 0:
+                total_change_text = f"Net Change in {title}: 0 Rs."
+            else:
+                total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
+            story.append(Paragraph(total_change_text, total_change_style))
+    story.append(Spacer(1, 0 if is_secondary_metric else 0))
 def create_wsp_progression(story, wsp_df, region, styles, brand_name=None):
     """
     Modified to support optional brand name parameter
