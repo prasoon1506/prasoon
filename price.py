@@ -13,6 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from datetime import datetime as dt
 import pandas as pd
 import io
+import KeepTogether
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
