@@ -351,7 +351,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
         
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 3))
 def generate_regional_price_trend_report(df, wsp_df=None):
     try:
         # Validate input DataFrame
