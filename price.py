@@ -326,7 +326,6 @@ def process_excel_file(uploaded_file, requires_editing):
     df.columns = new_header
     df = df[~df.iloc[:, 1].str.contains('Date', na=False, case=False)]
     df.iloc[:, 1] = df.iloc[:, 1].apply(parse_date)
-    #df.iloc[:, 1] = df.iloc[:, 1].dt.strftime('%d-%b %Y')  
     df = df.loc[:, df.columns.notnull()] 
     df = df[df.iloc[:, 0] != "JKLC Price Tracker Mar'24 - till 03-12-24"]
     mask = df.iloc[:, 0].notna()
