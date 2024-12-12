@@ -251,7 +251,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             if total_change == 0:
                 total_change_text = f"{title}: No Change"
             else:
-                total_change_text = f"{title}: {total_change:+.0f}"
+                total_change_text = f"{title}: {total_change:+.0f} Rs."
             
             story.append(Paragraph(total_change_text, total_change_style))
         else:
