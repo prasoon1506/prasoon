@@ -318,7 +318,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
                                 rightMargin=2, leftMargin=2, 
-                                topMargin=30, bottomMargin=10)
+                                topMargin=10, bottomMargin=10)
         
         # Get sample styles
         styles = getSampleStyleSheet()
@@ -353,7 +353,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                    alignment=TA_CENTER,
                                    spaceAfter=20
                                )))
-        story.append(Spacer(1, 18))
+        story.append(Spacer(1, 10))
         
         # Current and last month calculation
         current_date = datetime.now()
@@ -370,7 +370,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             for region in regions_on_page:
                 region_df = df[df['Region(District)'] == region].copy()
                 story.append(Paragraph(f"{region}", region_style))
-                story.append(Spacer(1, 12))
+                story.append(Spacer(1, 6))
                 
                 # Create comprehensive metric progression for different metrics
                 create_comprehensive_metric_progression(
@@ -386,7 +386,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                 
                 # Add spacer between regions, but not a page break if two regions fit
                 if len(regions_on_page) > 1:
-                    story.append(Spacer(1, 20))
+                    story.append(Spacer(1, 6))
             
             # Add page break after processing regions on this page
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
