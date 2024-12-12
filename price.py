@@ -133,9 +133,20 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
                 total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
-def create_wsp_progression(story, wsp_df, region, styles, brand_name=None):
+from reportlab.platypus import Paragraph, Spacer, Line
+from reportlab.lib.units import inch
+
+def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False):
     """
-    Modified to support optional brand name parameter
+    Modified to add a dark separator line after each company's WSP progression
+    
+    Args:
+    - story: The story list to append content to
+    - wsp_df: DataFrame containing WSP data
+    - region: Region to filter data
+    - styles: Reportlab styles
+    - brand_name: Optional name of the brand
+    - is_last_brand: Flag to determine if this is the last brand (to avoid adding separator after the last one)
     """
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=6)
@@ -188,7 +199,12 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None):
         story.append(Paragraph(total_change_text, total_change_style))
     
     story.append(Spacer(1, 0))
-
+    
+    # Add a dark separator line after each brand's data, except for the last brand
+    if not is_last_brand:
+        line = Line(0, 0, 6*inch, 0, strokeColor=colors.black, strokeWidth=1)
+        story.append(line)
+        story.append(Spacer(1, 6))  # Add some space after the line
 def save_regional_price_trend_report(df):
     """
     Modified to support company's WSP and competitive brands' WSP
@@ -236,12 +252,21 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
             
             # Company's WSP data
-            create_wsp_progression(region_story, company_wsp_df, region, styles)
+            brand_count = 1 if company_wsp_df else 0
+            if competitive_brands_wsp:
+                brand_count += len(competitive_brands_wsp)
+            
+            # Company's WSP data
+            is_last_brand = (brand_count == 1)
+            create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand)
             
             # Competitive brands' WSP data
             if competitive_brands_wsp:
-                for brand, brand_wsp_df in competitive_brands_wsp.items():
-                    create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand)
+                brand_names = list(competitive_brands_wsp.keys())
+                for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
+                    # Check if this is the last brand
+                    is_last_brand = (i == len(brand_names) - 1)
+                    create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand)
             
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
