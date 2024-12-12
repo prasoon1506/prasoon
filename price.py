@@ -99,8 +99,8 @@ def generate_regional_price_trend_report(df):
             parent=styles['Normal'],
             fontSize=12,
             textColor=colors.blue,
-            alignment=1,  # Center alignment
-            spaceAfter=12
+            alignment=0,  # Center alignment
+            spaceAfter=14
         )
         
         story = []
@@ -144,7 +144,7 @@ def generate_regional_price_trend_report(df):
                 return None
             
             def create_comprehensive_price_progression(region_df, current_date, last_month):
-                story.append(Paragraph(f"Price Progression from {last_month.strftime('%B %Y')} to {current_month_name}", month_style))
+                story.append(Paragraph(f"Invoice Price Progression from {last_month.strftime('%B %Y')} to {current_month_name}", month_style))
                 
                 # Get the start data point (either 1st of last month or last available data from previous month)
                 start_data_point = get_start_data_point(region_df, last_month)
@@ -204,7 +204,7 @@ def generate_regional_price_trend_report(df):
                 # Calculate total change
                 if len(prices) > 1:
                     total_change = float(prices[-1]) - float(prices[0])
-                    total_change_text = f"Total Change in Invoice: {total_change:+.0f} Rs."
+                    total_change_text = f"Net Change in Invoice Price: {total_change:+.0f} Rs."
                     story.append(Paragraph(total_change_text, total_change_style))
                 
                 story.append(Spacer(1, 12))
