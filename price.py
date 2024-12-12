@@ -63,78 +63,51 @@ def generate_regional_price_trend_report(df):
         # Prepare buffer for PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=30, leftMargin=30, 
-                                topMargin=30, bottomMargin=30)
+                                rightMargin=2, leftMargin=2, 
+                                topMargin=18, bottomMargin=18)
         
         # Get sample styles
         styles = getSampleStyleSheet()
         
-        # Add normal_style back
-        normal_style = styles['Normal']
-        
-        # Custom styles with enhanced aesthetics
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Title'],
-            textColor=colors.darkblue,
-            fontSize=16,
-            spaceAfter=12,
-            borderWidth=1,
-            borderColor=colors.darkblue,
-            borderPadding=10,
-            alignment=1  # Center alignment
-        )
-        
+        # Custom styles
+        title_style = styles['Title']
         region_style = ParagraphStyle(
             'RegionStyle', 
             parent=styles['Heading2'], 
-            textColor=colors.navy,
-            spaceAfter=12,
-            borderBottom=1,
-            borderColor=colors.navy
+            textColor=colors.blue,
+            spaceAfter=12
         )
-        
         month_style = ParagraphStyle(
             'MonthStyle', 
             parent=styles['Heading3'], 
-            textColor=colors.darkgreen,
-            spaceAfter=8,
-            fontName='Helvetica-Bold'
+            textColor=colors.green,
+            spaceAfter=6
         )
+        normal_style = styles['Normal']
         
-        # Enhanced large price style
+        # Create larger font style for price progression
         large_price_style = ParagraphStyle(
             'LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=6,
-            textColor=colors.darkblue
+            fontSize=14,
+            spaceAfter=6
         )
         
-        # Enhanced total change style with rectangular box
+        # Style for total change
         total_change_style = ParagraphStyle(
             'TotalChangeStyle',
             parent=styles['Normal'],
             fontSize=12,
             textColor=colors.brown,
-            alignment=1,  # Center alignment
-            spaceAfter=14,
-            borderWidth=1,
-            borderColor=colors.gray,
-            borderPadding=10,
-            backColor=colors.lightgrey
+            alignment=0,  # Center alignment
+            spaceAfter=14
         )
         
         story = []
-        
-        # Add a more elegant header
-        story.append(Paragraph("Regional Price Trend Analysis", title_style))
-        story.append(Spacer(1, 12))
-        
         for region in df['Region(District)'].unique():
             region_df = df[df['Region(District)'] == region].copy()
-            story.append(Paragraph(f"Region: {region}", region_style))
-            story.append(Spacer(1, 6))
+            story.append(Paragraph(f"Price Trend Report: {region}", title_style))
+            story.append(Spacer(1, 12))
             
             # Current and last month calculation
             current_date = datetime.now()
@@ -215,14 +188,14 @@ def generate_regional_price_trend_report(df):
                                 f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
                             )
                         else:
-                            # Neutral change (just 0, not +0)
+                            # Neutral change
                             metric_progression_parts.append(
-                                f'<sup><font size="8">0</font></sup>→'
+                                f'<sup><font size="8">00</font></sup>→'
                             )
                 
                 # Join the progression parts
                 full_progression = " ".join(metric_progression_parts)
-                date_progression_text = " ---- ".join(dates)
+                date_progression_text = " ----- ".join(dates)
                 
                 # Add metric progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
@@ -231,11 +204,11 @@ def generate_regional_price_trend_report(df):
                 # Calculate total change
                 if len(metric_values) > 1:
                     total_change = float(metric_values[-1]) - float(metric_values[0])
-                    # Modified to show just 0 instead of +0
                     if total_change == 0:
-                        total_change_text = f"Net Change in {title}: 0 Rs"
+                        total_change_text = f"Net Change in {title}: 0 Rs."
                     else:
                         total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
+                    
                     story.append(Paragraph(total_change_text, total_change_style))
                 
                 story.append(Spacer(1, 12))
@@ -247,12 +220,12 @@ def generate_regional_price_trend_report(df):
             
             # Create comprehensive NOD progression below Inventory
             create_comprehensive_metric_progression(
-                region_df, current_date, last_month, 'Net', 'Net Days Outstanding (NOD)'
+                region_df, current_date, last_month, 'Net', 'NOD'
             )
             
             story.append(Paragraph("<pagebreak/>", normal_style))
         
-        # Build PDF with a more aesthetic template
+        # Build PDF
         doc.build(story)
         
         # Reset buffer position
