@@ -27,7 +27,6 @@ from datetime import datetime, timedelta
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
-
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
     competitive_brands_wsp = {}
@@ -133,8 +132,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
                 total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
-from reportlab.platypus import Paragraph, Spacer, Line
-from reportlab.lib.units import inch
+
 
 def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False):
     """
