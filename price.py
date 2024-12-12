@@ -142,7 +142,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 4))
         return
     
     # Prepare the data for progression
@@ -153,7 +153,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 4))
         return
     
     # Prepare metric values and dates
@@ -241,7 +241,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
     
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}", normal_style))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 4))
         return
     
     # Extract WSP values for November and December weeks
@@ -298,7 +298,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
         
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 4))
 def generate_regional_price_trend_report(df, wsp_df=None):
     try:
         # Validate input DataFrame
@@ -369,7 +369,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             for region in regions_on_page:
                 region_df = df[df['Region(District)'] == region].copy()
                 story.append(Paragraph(f"{region}", region_style))
-                story.append(Spacer(1, 12))
+                story.append(Spacer(1, 4))
                 
                 # Create comprehensive metric progression for different metrics
                 create_comprehensive_metric_progression(
@@ -385,7 +385,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                 
                 # Add spacer between regions, but not a page break if two regions fit
                 if len(regions_on_page) > 1:
-                    story.append(Spacer(1, 20))
+                    story.append(Spacer(1, 4))
             
             # Add page break after processing regions on this page
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
