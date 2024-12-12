@@ -49,7 +49,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 def generate_regional_price_trend_report(df):
     try:
         # Validate input DataFrame
-        required_columns = ['Date', 'Region(District)', 'Inv.']
+        required_columns = ['Date', 'Region(District)', 'Inv.', 'Net']
         for col in required_columns:
             if col not in df.columns:
                 raise ValueError(f"Missing required column: {col}")
@@ -143,8 +143,8 @@ def generate_regional_price_trend_report(df):
                 
                 return None
             
-            def create_comprehensive_price_progression(region_df, current_date, last_month):
-                story.append(Paragraph(f"Invoice Price Progression from {last_month.strftime('%B %Y')} to {current_month_name}:-", month_style))
+            def create_comprehensive_metric_progression(region_df, current_date, last_month, metric_column, title):
+                story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_month_name}:-", month_style))
                 
                 # Get the start data point (either 1st of last month or last available data from previous month)
                 start_data_point = get_start_data_point(region_df, last_month)
@@ -165,53 +165,58 @@ def generate_regional_price_trend_report(df):
                     story.append(Spacer(1, 12))
                     return
                 
-                # Prepare prices and dates
-                prices = progression_df['Inv.'].apply(lambda x: f"{x:.0f}").tolist()
+                # Prepare metric values and dates
+                metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
                 dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
                 
-                # Prepare price progression parts
-                price_progression_parts = []
-                for i in range(len(prices)):
-                    # Add price
-                    price_progression_parts.append(prices[i])
+                # Prepare metric progression parts
+                metric_progression_parts = []
+                for i in range(len(metric_values)):
+                    # Add metric value
+                    metric_progression_parts.append(metric_values[i])
                     
-                    # Add change annotation on arrow for all except the last price
-                    if i < len(prices) - 1:
-                        change = float(prices[i+1]) - float(prices[i])
+                    # Add change annotation on arrow for all except the last value
+                    if i < len(metric_values) - 1:
+                        change = float(metric_values[i+1]) - float(metric_values[i])
                         if change > 0:
-                            price_progression_parts.append(
+                            metric_progression_parts.append(
                                 f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
                             )
                         elif change < 0:
                             # Red downward change
-                            price_progression_parts.append(
+                            metric_progression_parts.append(
                                 f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
                             )
                         else:
                             # Neutral change
-                            price_progression_parts.append(
+                            metric_progression_parts.append(
                                 f'<sup><font size="8">00</font></sup>→'
                             )
                 
                 # Join the progression parts
-                full_progression = " ".join(price_progression_parts)
+                full_progression = " ".join(metric_progression_parts)
                 date_progression_text = " ----- ".join(dates)
                 
-                # Add price progression with larger font
+                # Add metric progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
                 story.append(Paragraph(date_progression_text, normal_style))
                 
                 # Calculate total change
-                if len(prices) > 1:
-                    total_change = float(prices[-1]) - float(prices[0])
-                    total_change_text = f"Net Change in Invoice Price: {total_change:+.0f} Rs."
+                if len(metric_values) > 1:
+                    total_change = float(metric_values[-1]) - float(metric_values[0])
+                    total_change_text = f"Net Change in {title}: {total_change:+.0f}"
                     story.append(Paragraph(total_change_text, total_change_style))
                 
                 story.append(Spacer(1, 12))
             
-            # Create comprehensive price progression
-            create_comprehensive_price_progression(
-                region_df, current_date, last_month
+            # Create comprehensive price progression for Inventory
+            create_comprehensive_metric_progression(
+                region_df, current_date, last_month, 'Inv.', 'Invoice Price'
+            )
+            
+            # Create comprehensive NOD progression below Inventory
+            create_comprehensive_metric_progression(
+                region_df, current_date, last_month, 'Net', 'Net Days Outstanding (NOD)'
             )
             
             story.append(Paragraph("<pagebreak/>", normal_style))
