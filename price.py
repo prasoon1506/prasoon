@@ -33,28 +33,20 @@ def get_competitive_brands_wsp_data():
             try:
                 xls = pd.ExcelFile(competitive_brands_file)
                 required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
-                
                 for sheet_name in xls.sheet_names:
                     df = pd.read_excel(competitive_brands_file, sheet_name=sheet_name)
-                    
-                    # Validate columns
                     missing_columns = [col for col in required_columns if col not in df.columns]
                     if missing_columns:
                         st.warning(f"Sheet '{sheet_name}' is missing columns: {missing_columns}")
                         continue
-                    
                     competitive_brands_wsp[sheet_name] = df
-                
                 if not competitive_brands_wsp:
                     st.error("No valid brand sheets found in the uploaded file.")
                     return None
-                
                 return competitive_brands_wsp
-            
             except Exception as e:
                 st.error(f"Could not read competitive brands WSP file: {e}")
                 return None
-    
     return None
 def get_start_data_point(df, reference_date):
     first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == reference_date.month) & (df['Date'].dt.day == 1)]
@@ -122,16 +114,13 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
                 total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
-
 def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False, company_wsp_df=None):
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=6)
     large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=6)
     total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=14, fontName='Helvetica-Bold')
-    
     if wsp_df is None:
         return
-    
     region_wsp = wsp_df[wsp_df['Region(District)'] == region]
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}" + 
@@ -139,16 +128,12 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
                                 normal_style))
         story.append(Spacer(1, 0))
         return
-    
     wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
     metric_values = region_wsp[wsp_columns].values.flatten().tolist()
     week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec']
-    
-    # Add brand name to header if provided
     header_text = f"WSP Progression from November to December 2024" + \
                   (f" - {brand_name}" if brand_name else "")
     story.append(Paragraph(header_text + ":-", month_style))
-    
     metric_progression_parts = []
     for i in range(len(metric_values)):
         metric_progression_parts.append(f"{metric_values[i]:.0f}")
@@ -160,12 +145,10 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
                 metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
             else:
                 metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
-    
     full_progression = " ".join(metric_progression_parts)
     week_progression_text = " -- ".join(week_labels)
     story.append(Paragraph(full_progression, large_price_style))
     story.append(Paragraph(week_progression_text, normal_style))
-    
     if len(metric_values) > 1:
         total_change = float(metric_values[-1]) - float(metric_values[0])
         if total_change == 0:
@@ -173,45 +156,22 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
         else:
             total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
         story.append(Paragraph(total_change_text, total_change_style))
-    
-    # Add WSP comparison with company's brand for Week-1 Dec
     if company_wsp_df is not None and brand_name is not None:
         company_region_wsp = company_wsp_df[company_wsp_df['Region(District)'] == region]
         if not company_region_wsp.empty and not region_wsp.empty:
             company_w1_dec_wsp = company_region_wsp['Week-1 Dec'].values[0]
             competitive_w1_dec_wsp = region_wsp['Week-1 Dec'].values[0]
             wsp_difference = company_w1_dec_wsp - competitive_w1_dec_wsp
-            
             wsp_diff_text = f"Difference in WSP between JKLC and {brand_name} on W-1 December is {wsp_difference:+.0f} Rs."
             story.append(Paragraph(wsp_diff_text, total_change_style))
-    
     story.append(Spacer(1, 0))
-    
-    # Add a dark separator line after each brand's data, except for the last brand
     if not is_last_brand:
-        story.append(HRFlowable(
-            width="100%", 
-            thickness=1, 
-            lineCap='round', 
-            color=colors.black,
-            spaceBefore=6,
-            spaceAfter=6
-        ))
+        story.append(HRFlowable(width="100%",thickness=1,lineCap='round',color=colors.black,spaceBefore=6,spaceAfter=6))
 def save_regional_price_trend_report(df):
-    """
-    Modified to support company's WSP and competitive brands' WSP
-    """
-    # Get company's WSP data
     company_wsp_df = get_wsp_data()
-    
-    # Get competitive brands' WSP data
     competitive_brands_wsp = get_competitive_brands_wsp_data()
-    
-    # Generate report with all WSP data
     return generate_regional_price_trend_report(df, company_wsp_df, competitive_brands_wsp)
-
 def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_brands_wsp=None):
-        
     try:
         required_columns = ['Date', 'Region(District)', 'Inv.', 'Net', 'RD', 'STS']
         for col in required_columns:
@@ -236,19 +196,13 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             region_df = df[df['Region(District)'] == region].copy()
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
-            
-            # Existing report sections
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
-            
-            # Company's WSP data
             brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
-            
-            # Company's WSP data
             is_last_brand = (brand_count == 1)
             create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
             if competitive_brands_wsp:
