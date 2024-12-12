@@ -20,88 +20,85 @@ import pandas as pd
 import io
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import streamlit as st
-def get_start_data_point(df, reference_date):
-    first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == reference_date.month) & (df['Date'].dt.day == 1)]
-    if not first_day_data.empty:
-        return first_day_data.iloc[0]
-    prev_month = reference_date.replace(day=1) - timedelta(days=1)
-    last_data_of_prev_month = df[(df['Date'].dt.year == prev_month.year) & (df['Date'].dt.month == prev_month.month)]
-    if not last_data_of_prev_month.empty:
-        return last_data_of_prev_month.iloc[-1]
+import streamlit as st
+import pandas as pd
+import io
+from datetime import datetime, timedelta
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
+from reportlab.lib.units import letter
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+def get_competitive_brands_wsp_data():
+    include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
+    competitive_brands_wsp = {}
+    
+    if include_competitive_brands:
+        competitive_brands_file = st.file_uploader(
+            "Upload Competitive Brands WSP Data File", 
+            type=['xlsx'], 
+            help="Upload an Excel file with multiple sheets, each representing a different brand's WSP data"
+        )
+        
+        if competitive_brands_file is not None:
+            try:
+                # Read all sheets from the Excel file
+                xls = pd.ExcelFile(competitive_brands_file)
+                required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
+                
+                for sheet_name in xls.sheet_names:
+                    df = pd.read_excel(competitive_brands_file, sheet_name=sheet_name)
+                    
+                    # Validate columns
+                    missing_columns = [col for col in required_columns if col not in df.columns]
+                    if missing_columns:
+                        st.warning(f"Sheet '{sheet_name}' is missing columns: {missing_columns}")
+                        continue
+                    
+                    competitive_brands_wsp[sheet_name] = df
+                
+                if not competitive_brands_wsp:
+                    st.error("No valid brand sheets found in the uploaded file.")
+                    return None
+                
+                return competitive_brands_wsp
+            
+            except Exception as e:
+                st.error(f"Could not read competitive brands WSP file: {e}")
+                return None
+    
     return None
-def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
-    if is_secondary_metric:
-        month_style = ParagraphStyle(f'{title}MonthStyle',parent=styles['Normal'],textColor=colors.darkgreen,fontSize=12,spaceAfter=4)
-        normal_style = ParagraphStyle(f'{title}NormalStyle',parent=styles['Normal'],fontSize=12)
-        total_change_style = ParagraphStyle(f'{title}TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=4)
-    else:
-        month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
-        normal_style = styles['Normal']
-        large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
-        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
-    if not is_secondary_metric:
-        story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
-    start_data_point = get_start_data_point(region_df, last_month)
-    if start_data_point is None:
-        story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 0 if is_secondary_metric else 0))
-        return
-    progression_df = region_df[(region_df['Date'] >= start_data_point['Date']) & (region_df['Date'] <= current_date)].copy().sort_values('Date')
-    if progression_df.empty:
-        story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 0 if is_secondary_metric else 0))
-        return
-    if not is_secondary_metric:
-        metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
-        dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
-        metric_progression_parts = []
-        for i in range(len(metric_values)):
-            metric_progression_parts.append(metric_values[i])
-            if i < len(metric_values) - 1:
-                change = float(metric_values[i+1]) - float(metric_values[i])
-                if change > 0:
-                    metric_progression_parts.append(f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→')
-                elif change < 0:
-                    metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
-                else:
-                    metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
-        full_progression = " ".join(metric_progression_parts)
-        date_progression_text = " ----- ".join(dates)
-        story.append(Paragraph(full_progression, large_price_style))
-        story.append(Paragraph(date_progression_text, normal_style))
-    if len(progression_df[metric_column]) > 1:
-        start_value = progression_df[metric_column].iloc[0]
-        end_value = progression_df[metric_column].iloc[-1]
-        total_change = end_value - start_value
-        if is_secondary_metric:
-            if total_change == 0:
-                total_change_text = f"{title}: No Change"
-            else:
-                total_change_text = f"{title}: {total_change:+.0f} Rs."
-            story.append(Paragraph(total_change_text, total_change_style))
-        else:
-            if total_change == 0:
-                total_change_text = f"Net Change in {title}: 0 Rs."
-            else:
-                total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
-            story.append(Paragraph(total_change_text, total_change_style))
-    story.append(Spacer(1, 0 if is_secondary_metric else 0))
-def create_wsp_progression(story, wsp_df, region, styles):
+
+def create_wsp_progression(story, wsp_df, region, styles, brand_name=None):
+    """
+    Modified to support optional brand name parameter
+    """
     normal_style = styles['Normal']
-    month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
-    large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
-    total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
+    month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=6)
+    large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=6)
+    total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=14, fontName='Helvetica-Bold')
+    
     if wsp_df is None:
         return
+    
     region_wsp = wsp_df[wsp_df['Region(District)'] == region]
     if region_wsp.empty:
-        story.append(Paragraph(f"No WSP data available for {region}", normal_style))
+        story.append(Paragraph(f"No WSP data available for {region}" + 
+                                (f" - {brand_name}" if brand_name else ""), 
+                                normal_style))
         story.append(Spacer(1, 0))
         return
+    
     wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
     metric_values = region_wsp[wsp_columns].values.flatten().tolist()
     week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec']
-    story.append(Paragraph(f"WSP Progression from November to December 2024:-", month_style))
+    
+    # Add brand name to header if provided
+    header_text = f"WSP Progression from November to December 2024" + \
+                  (f" - {brand_name}" if brand_name else "")
+    story.append(Paragraph(header_text + ":-", month_style))
+    
     metric_progression_parts = []
     for i in range(len(metric_values)):
         metric_progression_parts.append(f"{metric_values[i]:.0f}")
@@ -113,19 +110,37 @@ def create_wsp_progression(story, wsp_df, region, styles):
                 metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
             else:
                 metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
+    
     full_progression = " ".join(metric_progression_parts)
     week_progression_text = " -- ".join(week_labels)
     story.append(Paragraph(full_progression, large_price_style))
     story.append(Paragraph(week_progression_text, normal_style))
+    
     if len(metric_values) > 1:
         total_change = float(metric_values[-1]) - float(metric_values[0])
         if total_change == 0:
-            total_change_text = f"Net Change in WSP: 0 Rs."
+            total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: 0 Rs."
         else:
-            total_change_text = f"Net Change in WSP: {total_change:+.0f} Rs."
+            total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
         story.append(Paragraph(total_change_text, total_change_style))
+    
     story.append(Spacer(1, 0))
-def generate_regional_price_trend_report(df, wsp_df=None):
+
+def save_regional_price_trend_report(df):
+    """
+    Modified to support company's WSP and competitive brands' WSP
+    """
+    # Get company's WSP data
+    company_wsp_df = get_wsp_data()
+    
+    # Get competitive brands' WSP data
+    competitive_brands_wsp = get_competitive_brands_wsp_data()
+    
+    # Generate report with all WSP data
+    return generate_regional_price_trend_report(df, company_wsp_df, competitive_brands_wsp)
+
+def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_brands_wsp=None):
+        
     try:
         required_columns = ['Date', 'Region(District)', 'Inv.', 'Net', 'RD', 'STS']
         for col in required_columns:
@@ -150,11 +165,21 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             region_df = df[df['Region(District)'] == region].copy()
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
+            
+            # Existing report sections
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
-            create_wsp_progression(region_story, wsp_df, region, styles)
+            
+            # Company's WSP data
+            create_wsp_progression(region_story, company_wsp_df, region, styles)
+            
+            # Competitive brands' WSP data
+            if competitive_brands_wsp:
+                for brand, brand_wsp_df in competitive_brands_wsp.items():
+                    create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand)
+            
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         doc.build(story)
