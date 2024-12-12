@@ -46,7 +46,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
 def generate_regional_price_trend_report(df):
     try:
         # Validate input DataFrame
@@ -94,6 +93,16 @@ def generate_regional_price_trend_report(df):
             spaceAfter=6
         )
         
+        # Create aesthetic total change style
+        total_change_style = ParagraphStyle(
+            'TotalChangeStyle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.darkblue,
+            alignment=1,  # Center alignment
+            spaceAfter=12
+        )
+        
         story = []
         for region in df['Region(District)'].unique():
             region_df = df[df['Region(District)'] == region].copy()
@@ -109,28 +118,56 @@ def generate_regional_price_trend_report(df):
             last_month_name = last_month.strftime('%B %Y')
             last_to_last_month_name = last_to_last_month.strftime('%B %Y')
             
-            # Filter data for relevant months
-            def filter_month_data(df, date):
-                return df[
-                    (df['Date'].dt.year == date.year) & 
-                    (df['Date'].dt.month == date.month)
-                ]
+            # Extended filter function to handle missing first day data
+            def get_continuous_month_data(df, start_month, end_month):
+                # Filter data for the entire period from start of first month to end of second month
+                month_data = df[
+                    (df['Date'] >= start_month.replace(day=1)) & 
+                    (df['Date'] <= end_month.replace(day=calendar.monthrange(end_month.year, end_month.month)[1]))
+                ].copy()
+                
+                # Sort by date
+                month_data = month_data.sort_values('Date')
+                
+                # If no data in the start month, get the last data point from previous month
+                if month_data[
+                    (month_data['Date'].dt.year == start_month.year) & 
+                    (month_data['Date'].dt.month == start_month.month)
+                ].empty:
+                    # Get last data point from previous month
+                    previous_month_data = df[
+                        (df['Date'].dt.year == last_to_last_month.year) & 
+                        (df['Date'].dt.month == last_to_last_month.month)
+                    ].copy()
+                    
+                    if not previous_month_data.empty:
+                        # Take the last data point from previous month
+                        last_point = previous_month_data.loc[previous_month_data['Date'].idxmax()]
+                        
+                        # Create a synthetic first data point for the new month
+                        synthetic_first_point = pd.DataFrame({
+                            'Date': [start_month.replace(day=1)],
+                            'Region(District)': [region],
+                            'Inv.': [last_point['Inv.']]
+                        })
+                        
+                        # Concat with existing data
+                        month_data = pd.concat([synthetic_first_point, month_data]).reset_index(drop=True)
+                
+                return month_data
             
-            current_month_data = filter_month_data(region_df, current_date)
-            last_month_data = filter_month_data(region_df, last_month)
-            last_to_last_month_data = filter_month_data(region_df, last_to_last_month)
+            # Get continuous data spanning last to last month and current month
+            continuous_month_data = get_continuous_month_data(
+                region_df, last_to_last_month, current_date
+            )
             
-            def create_price_progression_paragraph(data, period_name):
+            def create_extended_price_progression_paragraph(data, start_month, end_month):
                 if data.empty:
-                    # If no data for the month, add a note instead of raising an error
-                    story.append(Paragraph(f"{period_name}: No data available", month_style))
+                    story.append(Paragraph(f"No data available from {start_month.strftime('%B %Y')} to {end_month.strftime('%B %Y')}", month_style))
                     story.append(Spacer(1, 12))
                     return
                 
-                story.append(Paragraph(period_name, month_style))
-                
-                # Sort data by date
-                data = data.sort_values('Date')
+                story.append(Paragraph(f"Price Progression from {start_month.strftime('%B %Y')} to {end_month.strftime('%B %Y')}", month_style))
                 
                 # Create price progression narrative
                 prices = data['Inv.'].apply(lambda x: f"{x:.0f}").tolist()
@@ -160,27 +197,31 @@ def generate_regional_price_trend_report(df):
                             price_progression_parts.append(
                                 f'<sup><font size="8">00</font></sup>→'
                             )
+                
+                # Calculate total change
+                total_change = float(prices[-1]) - float(prices[0])
+                
+                # Full progression text
                 full_progression = " ".join(price_progression_parts)
-                
-                
                 date_progression_text = " ------ ".join(dates)
+                
                 # Add price progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
                 story.append(Paragraph(date_progression_text, normal_style))
+                
+                # Add total change line
+                total_change_text = f"Total Change in Invoice: _{'+' if total_change > 0 else ''}{total_change:.0f}_ Rs."
+                story.append(Paragraph(total_change_text, total_change_style))
+                
                 story.append(Spacer(1, 12))
             
-            # Add pricing progression for each month period
-            create_price_progression_paragraph(
-                last_to_last_month_data, 
-                f"Price Progression in {last_to_last_month_name}"
+            # Create single progression paragraph spanning months
+            create_extended_price_progression_paragraph(
+                continuous_month_data, 
+                last_to_last_month, 
+                current_date
             )
-            create_price_progression_paragraph(
-                last_month_data, 
-                f"Price Progression in {last_month_name}"
-            )
-            create_price_progression_paragraph(
-                current_month_data, 
-                f"Price Progression in {current_month_name}")
+            
             story.append(Paragraph("<pagebreak/>", normal_style))
         
         # Build PDF
@@ -206,6 +247,7 @@ def save_regional_price_trend_report(df):
     io.BytesIO: PDF report buffer
     """
     return generate_regional_price_trend_report(df)
+
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
