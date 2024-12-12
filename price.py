@@ -145,7 +145,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             parent=styles['Normal'],
             fontSize=12,
             textColor=colors.brown,
-            alignment=TA_CENTER,
+            alignment=TA_LEFT,
             spaceAfter=14
         )
         
@@ -271,7 +271,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             metric_values = region_wsp[wsp_columns].values.flatten().tolist()
             
             # Prepare week labels
-            week_labels = wsp_columns
+            week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec']
             
             # Add WSP Progression title
             story.append(Paragraph(f"WSP Progression from November to December 2024:-", month_style))
