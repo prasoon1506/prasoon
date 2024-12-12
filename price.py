@@ -63,7 +63,7 @@ def generate_regional_price_trend_report(df):
         # Prepare buffer for PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=30, leftMargin=30, 
+                                rightMargin=5, leftMargin=5, 
                                 topMargin=30, bottomMargin=30)
         
         # Get sample styles
@@ -116,7 +116,7 @@ def generate_regional_price_trend_report(df):
             'TotalChangeStyle',
             parent=styles['Normal'],
             fontSize=12,
-            textColor=colors.black,
+            textColor=colors.brown,
             alignment=1,  # Center alignment
             spaceAfter=14,
             borderWidth=1,
@@ -233,9 +233,9 @@ def generate_regional_price_trend_report(df):
                     total_change = float(metric_values[-1]) - float(metric_values[0])
                     # Modified to show just 0 instead of +0
                     if total_change == 0:
-                        total_change_text = f"Net Change in {title}: 0"
+                        total_change_text = f"Net Change in {title}: 0 Rs"
                     else:
-                        total_change_text = f"Net Change in {title}: {total_change:+.0f}"
+                        total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
                     story.append(Paragraph(total_change_text, total_change_style))
                 
                 story.append(Spacer(1, 12))
