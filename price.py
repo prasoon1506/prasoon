@@ -55,8 +55,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-import tkinter as tk
-from tkinter import filedialog, messagebox
 import pandas as pd
 import io
 from datetime import datetime, timedelta
@@ -64,18 +62,10 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-import tkinter as tk
-from tkinter import filedialog, messagebox
 import streamlit as st
 import pandas as pd
 
 def get_wsp_data():
-    """
-    Use Streamlit file uploader to include WSP data
-    
-    Returns:
-    pandas.DataFrame or None: WSP DataFrame if user uploads, else None
-    """
     include_wsp = st.checkbox("Include WSP (Wholesale Price) Data")
     
     if include_wsp:
