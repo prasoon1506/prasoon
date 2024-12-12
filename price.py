@@ -317,8 +317,8 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Prepare buffer for PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=30, leftMargin=30, 
-                                topMargin=30, bottomMargin=30)
+                                rightMargin=2, leftMargin=2, 
+                                topMargin=30, bottomMargin=10)
         
         # Get sample styles
         styles = getSampleStyleSheet()
