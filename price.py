@@ -195,7 +195,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 4 if is_secondary_metric else 12))
+        story.append(Spacer(1, 4 if is_secondary_metric else 4))
         return
     
     # Prepare the data for progression
@@ -206,7 +206,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 4 if is_secondary_metric else 12))
+        story.append(Spacer(1, 4 if is_secondary_metric else 4))
         return
     
     # Prepare metric values and dates
