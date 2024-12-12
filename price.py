@@ -195,7 +195,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 4 if is_secondary_metric else 4))
+        story.append(Spacer(1, 1 if is_secondary_metric else 3))
         return
     
     # Prepare the data for progression
@@ -206,7 +206,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 4 if is_secondary_metric else 4))
+        story.append(Spacer(1, 1 if is_secondary_metric else 3))
         return
     
     # Prepare metric values and dates
@@ -255,7 +255,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 4 if is_secondary_metric else 8))
+    story.append(Spacer(1, 1 if is_secondary_metric else 3))
 
 def create_wsp_progression(story, wsp_df, region, styles):
     """
@@ -294,7 +294,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
     
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}", normal_style))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 3))
         return
     
     # Extract WSP values for November and December weeks
