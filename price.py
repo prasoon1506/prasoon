@@ -321,6 +321,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Initialize story for PDF
         story = []
         story.append(Paragraph("Price Trend Analysis", title_style))
+        story.append(Spacer(1, 18))
         # Current and last month calculation
         current_date = datetime.now()
         last_month = current_date.replace(day=1) - timedelta(days=1)
@@ -328,7 +329,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Generate report for each region
         for region in df['Region(District)'].unique():
             region_df = df[df['Region(District)'] == region].copy()
-            story.append(Paragraph(f"Price Trend Report: {region}", region_style))
+            story.append(Paragraph(f"{region}", region_style))
             story.append(Spacer(1, 12))
             
             # Create comprehensive metric progression for different metrics
