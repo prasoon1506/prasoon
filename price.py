@@ -134,20 +134,20 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             f'{title}MonthStyle', 
             parent=styles['Normal'], 
             textColor=colors.darkgreen,
-            fontSize=8,
+            fontSize=12,
             spaceAfter=4
         )
         
         normal_style = ParagraphStyle(
             f'{title}NormalStyle',
             parent=styles['Normal'],
-            fontSize=8
+            fontSize=12
         )
         
         total_change_style = ParagraphStyle(
             f'{title}TotalChangeStyle',
             parent=styles['Normal'],
-            fontSize=8,
+            fontSize=12,
             textColor=colors.brown,
             alignment=TA_LEFT,
             spaceAfter=4
