@@ -204,7 +204,7 @@ def generate_regional_price_trend_report(df):
                 # Calculate total change
                 if len(metric_values) > 1:
                     total_change = float(metric_values[-1]) - float(metric_values[0])
-                    total_change_text = f"Net Change in {title}: {total_change:+.0f}"
+                    total_change_text = f"Net Change in {title}: {total_change:+.0f}Rs."
                     story.append(Paragraph(total_change_text, total_change_style))
                 
                 story.append(Spacer(1, 12))
@@ -216,7 +216,7 @@ def generate_regional_price_trend_report(df):
             
             # Create comprehensive NOD progression below Inventory
             create_comprehensive_metric_progression(
-                region_df, current_date, last_month, 'Net', 'Net Days Outstanding (NOD)'
+                region_df, current_date, last_month, 'Net', 'NOD'
             )
             
             story.append(Paragraph("<pagebreak/>", normal_style))
