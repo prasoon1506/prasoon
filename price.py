@@ -317,7 +317,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
                                 rightMargin=2, leftMargin=2, 
-                                topMargin=30, bottomMargin=10)
+                                topMargin=2, bottomMargin=2)
         
         # Get sample styles
         styles = getSampleStyleSheet()
@@ -348,7 +348,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                    'SubtitleStyle', 
                                    parent=styles['Normal'], 
                                    fontSize=14, 
-                                   textColor=colors.darkgray,
+                                   textColor=colors.red,
                                    alignment=TA_CENTER,
                                    spaceAfter=20
                                )))
