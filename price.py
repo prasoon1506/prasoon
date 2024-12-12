@@ -69,6 +69,9 @@ def generate_regional_price_trend_report(df):
         # Get sample styles
         styles = getSampleStyleSheet()
         
+        # Add normal_style back
+        normal_style = styles['Normal']
+        
         # Custom styles with enhanced aesthetics
         title_style = ParagraphStyle(
             'CustomTitle',
