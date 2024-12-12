@@ -27,8 +27,6 @@ from datetime import datetime, timedelta
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
-from reportlab.lib.units import letter
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
