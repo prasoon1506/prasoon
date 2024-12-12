@@ -115,7 +115,6 @@ def get_start_data_point(df, reference_date):
         return last_data_of_prev_month.iloc[-1]
     
     return None
-
 def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
     """
     Create comprehensive metric progression section for a specific metric
@@ -145,21 +144,13 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             fontSize=8
         )
         
-        large_price_style = ParagraphStyle(
-            f'{title}LargePriceStyle',
-            parent=styles['Normal'],
-            fontSize=8,
-            spaceAfter=4
-        )
-        
         total_change_style = ParagraphStyle(
             f'{title}TotalChangeStyle',
             parent=styles['Normal'],
             fontSize=8,
             textColor=colors.brown,
             alignment=TA_LEFT,
-            spaceAfter=6,
-            fontName='Helvetica-Bold'
+            spaceAfter=4
         )
     else:
         month_style = ParagraphStyle(
@@ -188,7 +179,9 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             fontName='Helvetica-Bold'
         )
     
-    story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
+    # For primary metrics, keep existing progression title
+    if not is_secondary_metric:
+        story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
     
     # Get the start data point (either 1st of last month or last available data from previous month)
     start_data_point = get_start_data_point(region_df, last_month)
@@ -209,54 +202,68 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
     
-    # Prepare metric values and dates
-    metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
-    dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
-    
-    # Prepare metric progression parts
-    metric_progression_parts = []
-    for i in range(len(metric_values)):
-        # Add metric value
-        metric_progression_parts.append(metric_values[i])
+    # For primary metrics, keep existing detailed progression
+    if not is_secondary_metric:
+        # Prepare metric values and dates
+        metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
+        dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
         
-        # Add change annotation on arrow for all except the last value
-        if i < len(metric_values) - 1:
-            change = float(metric_values[i+1]) - float(metric_values[i])
-            if change > 0:
-                metric_progression_parts.append(
-                    f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
-                )
-            elif change < 0:
-                # Red downward change
-                metric_progression_parts.append(
-                    f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
-                )
-            else:
-                # Neutral change
-                metric_progression_parts.append(
-                    f'<sup><font size="8">00</font></sup>→'
-                )
-    
-    # Join the progression parts
-    full_progression = " ".join(metric_progression_parts)
-    date_progression_text = " ----- ".join(dates)
-    
-    # Add metric progression with larger font
-    story.append(Paragraph(full_progression, large_price_style))
-    story.append(Paragraph(date_progression_text, normal_style))
+        # Prepare metric progression parts
+        metric_progression_parts = []
+        for i in range(len(metric_values)):
+            # Add metric value
+            metric_progression_parts.append(metric_values[i])
+            
+            # Add change annotation on arrow for all except the last value
+            if i < len(metric_values) - 1:
+                change = float(metric_values[i+1]) - float(metric_values[i])
+                if change > 0:
+                    metric_progression_parts.append(
+                        f'<sup><font color="green" size="7">+{change:.0f}</font></sup>→'
+                    )
+                elif change < 0:
+                    # Red downward change
+                    metric_progression_parts.append(
+                        f'<sup><font color="red" size="7">{change:.0f}</font></sup>→'
+                    )
+                else:
+                    # Neutral change
+                    metric_progression_parts.append(
+                        f'<sup><font size="8">00</font></sup>→'
+                    )
+        
+        # Join the progression parts
+        full_progression = " ".join(metric_progression_parts)
+        date_progression_text = " ----- ".join(dates)
+        
+        # Add metric progression with larger font
+        story.append(Paragraph(full_progression, large_price_style))
+        story.append(Paragraph(date_progression_text, normal_style))
     
     # Calculate total change
-    if len(metric_values) > 1:
-        total_change = float(metric_values[-1]) - float(metric_values[0])
-        if total_change == 0:
-            total_change_text = f"Net Change in {title}: 0 Rs."
-        else:
-            total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
+    if len(progression_df[metric_column]) > 1:
+        start_value = progression_df[metric_column].iloc[0]
+        end_value = progression_df[metric_column].iloc[-1]
+        total_change = end_value - start_value
         
-        story.append(Paragraph(total_change_text, total_change_style))
+        if is_secondary_metric:
+            # For secondary metrics, just add a simple net change line
+            if total_change == 0:
+                total_change_text = f"{title}: No Change"
+            else:
+                total_change_text = f"{title}: {total_change:+.0f}"
+            
+            story.append(Paragraph(total_change_text, total_change_style))
+        else:
+            # For primary metrics, use existing detailed change
+            if total_change == 0:
+                total_change_text = f"Net Change in {title}: 0 Rs."
+            else:
+                total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
+            
+            story.append(Paragraph(total_change_text, total_change_style))
     
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
-
 def create_wsp_progression(story, wsp_df, region, styles):
     """
     Create WSP (Wholesale Price) progression section for a specific region
