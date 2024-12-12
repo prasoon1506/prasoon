@@ -3,6 +3,7 @@ import plotly.express as fx
 import plotly.graph_objs as go
 import plotly.io as pio
 import numpy as np
+from reportlab.platypus import HRFlowable
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak,Paragraph, Spacer
@@ -186,12 +187,18 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
         story.append(Paragraph(total_change_text, total_change_style))
     
     story.append(Spacer(1, 0))
+    story.append(Spacer(1, 0))
     
-    # Add a dark separator line after each brand's data, except for the last brand
+    # Replace the Line creation with HRFlowable
     if not is_last_brand:
-        line = Line(0, 0, 6*inch, 0, strokeColor=colors.black, strokeWidth=1)
-        story.append(line)
-        story.append(Spacer(1, 6))  # Add some space after the line
+        story.append(HRFlowable(
+            width="100%", 
+            thickness=1, 
+            lineCap='round', 
+            color=colors.black,
+            spaceBefore=6,
+            spaceAfter=6
+        ))
 def save_regional_price_trend_report(df):
     """
     Modified to support company's WSP and competitive brands' WSP
