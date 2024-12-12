@@ -9,6 +9,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak,P
 from datetime import datetime as dt
 from reportlab.platypus import KeepTogether
 from reportlab.lib.units import inch
+from reportlab.graphics.shapes import Line
 from datetime import datetime, timedelta
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
