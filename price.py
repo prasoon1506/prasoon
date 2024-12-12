@@ -182,7 +182,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
             competitive_w1_dec_wsp = region_wsp['Week-1 Dec'].values[0]
             wsp_difference = company_w1_dec_wsp - competitive_w1_dec_wsp
             
-            wsp_diff_text = f"Difference in WSP between our brand and {brand_name} on W-1 December: {wsp_difference:+.0f} Rs."
+            wsp_diff_text = f"Difference in WSP between JKLC and {brand_name} on W-1 December: {wsp_difference:+.0f} Rs."
             story.append(Paragraph(wsp_diff_text, total_change_style))
     
     story.append(Spacer(1, 0))
