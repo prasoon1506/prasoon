@@ -195,7 +195,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 1 if is_secondary_metric else 3))
+        story.append(Spacer(1, 1 if is_secondary_metric else 1))
         return
     
     # Prepare the data for progression
@@ -206,7 +206,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
     
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
-        story.append(Spacer(1, 1 if is_secondary_metric else 3))
+        story.append(Spacer(1, 1 if is_secondary_metric else 1))
         return
     
     # Prepare metric values and dates
@@ -255,7 +255,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 1 if is_secondary_metric else 3))
+    story.append(Spacer(1, 1 if is_secondary_metric else 1))
 
 def create_wsp_progression(story, wsp_df, region, styles):
     """
@@ -294,7 +294,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
     
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}", normal_style))
-        story.append(Spacer(1, 3))
+        story.append(Spacer(1, 1))
         return
     
     # Extract WSP values for November and December weeks
@@ -351,7 +351,7 @@ def create_wsp_progression(story, wsp_df, region, styles):
         
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 1))
 def generate_regional_price_trend_report(df, wsp_df=None):
     try:
         # Validate input DataFrame
@@ -406,7 +406,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                    alignment=TA_CENTER,
                                    spaceAfter=10
                                )))
-        story.append(Spacer(1, 3))
+        story.append(Spacer(1, 1))
         
         # Current and last month calculation
         current_date = datetime.now()
@@ -423,7 +423,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             
             # Add region name
             region_story.append(Paragraph(f"{region}", region_style))
-            region_story.append(Spacer(1, 3))
+            region_story.append(Spacer(1, 1))
             
             # Create comprehensive metric progression for different metrics
             # Primary metrics first
