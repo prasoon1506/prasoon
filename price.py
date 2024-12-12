@@ -62,8 +62,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-import streamlit as st
-import pandas as pd
 
 def get_wsp_data():
     include_wsp = st.checkbox("Include WSP (Wholesale Price) Data")
