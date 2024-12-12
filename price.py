@@ -89,7 +89,7 @@ def generate_regional_price_trend_report(df):
         large_price_style = ParagraphStyle(
             'LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=15,
+            fontSize=14,
             spaceAfter=6
         )
         
