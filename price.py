@@ -123,19 +123,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             story.append(Paragraph(total_change_text, total_change_style))
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
 
-
-def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False):
-    """
-    Modified to add a dark separator line after each company's WSP progression
-    
-    Args:
-    - story: The story list to append content to
-    - wsp_df: DataFrame containing WSP data
-    - region: Region to filter data
-    - styles: Reportlab styles
-    - brand_name: Optional name of the brand
-    - is_last_brand: Flag to determine if this is the last brand (to avoid adding separator after the last one)
-    """
+def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False, company_wsp_df=None):
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=6)
     large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=6)
@@ -186,10 +174,20 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
             total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
         story.append(Paragraph(total_change_text, total_change_style))
     
-    story.append(Spacer(1, 0))
+    # Add WSP comparison with company's brand for Week-1 Dec
+    if company_wsp_df is not None and brand_name is not None:
+        company_region_wsp = company_wsp_df[company_wsp_df['Region(District)'] == region]
+        if not company_region_wsp.empty and not region_wsp.empty:
+            company_w1_dec_wsp = company_region_wsp['Week-1 Dec'].values[0]
+            competitive_w1_dec_wsp = region_wsp['Week-1 Dec'].values[0]
+            wsp_difference = company_w1_dec_wsp - competitive_w1_dec_wsp
+            
+            wsp_diff_text = f"Difference in WSP between our brand and {brand_name} on W-1 December: {wsp_difference:+.0f} Rs."
+            story.append(Paragraph(wsp_diff_text, total_change_style))
+    
     story.append(Spacer(1, 0))
     
-    # Replace the Line creation with HRFlowable
+    # Add a dark separator line after each brand's data, except for the last brand
     if not is_last_brand:
         story.append(HRFlowable(
             width="100%", 
@@ -252,16 +250,12 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             
             # Company's WSP data
             is_last_brand = (brand_count == 1)
-            create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand)
-            
-            # Competitive brands' WSP data
-            if competitive_brands_wsp is not None:
-                brand_names = list(competitive_brands_wsp.keys())
-                for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
-                    # Check if this is the last brand
-                    is_last_brand = (i == len(brand_names) - 1)
-                    create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand)
-            
+            create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+            if competitive_brands_wsp:
+              brand_names = list(competitive_brands_wsp.keys())
+              for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
+                is_last_brand = (i == len(brand_names) - 1)
+                create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         doc.build(story)
