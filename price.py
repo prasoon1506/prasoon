@@ -431,14 +431,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                 region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
             )
             
-            # Secondary metrics with smaller styling
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True
-            )
             
-            create_comprehensive_metric_progression(
-                region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True
-            )
             
             # Return to primary styling for Net metric
             create_comprehensive_metric_progression(
