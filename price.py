@@ -134,7 +134,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
             f'{title}MonthStyle', 
             parent=styles['Normal'], 
             textColor=colors.darkgreen,
-            fontSize=12,
+            fontSize=10,
             spaceAfter=4
         )
         
@@ -351,7 +351,6 @@ def create_wsp_progression(story, wsp_df, region, styles):
         story.append(Paragraph(total_change_text, total_change_style))
     
     story.append(Spacer(1, 8))
-
 def generate_regional_price_trend_report(df, wsp_df=None):
     try:
         # Validate input DataFrame
@@ -366,29 +365,30 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Sort DataFrame by Region and Date
         df = df.sort_values(['Region(District)', 'Date'])
         
-        # Prepare buffer for PDF
+        # Prepare buffer for PDF with adjusted margins
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=2, leftMargin=2, 
-                                topMargin=30, bottomMargin=10)
+                                rightMargin=36, leftMargin=36, 
+                                topMargin=36, bottomMargin=36)
         
         # Get sample styles
         styles = getSampleStyleSheet()
         
-        # Custom styles
+        # Custom styles with smaller font sizes
         title_style = ParagraphStyle(
             'TitleStyle', 
             parent=styles['Title'], 
-            fontSize=24, 
+            fontSize=20, 
             textColor=colors.darkblue,
             alignment=TA_CENTER,
-            spaceAfter=20
+            spaceAfter=10
         )
         region_style = ParagraphStyle(
             'RegionStyle', 
             parent=styles['Heading2'], 
             textColor=colors.blue,
-            spaceAfter=12
+            spaceAfter=8,
+            fontSize=14
         )
         
         # Initialize story for PDF
@@ -400,12 +400,12 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                ParagraphStyle(
                                    'SubtitleStyle', 
                                    parent=styles['Normal'], 
-                                   fontSize=14, 
+                                   fontSize=12, 
                                    textColor=colors.red,
                                    alignment=TA_CENTER,
-                                   spaceAfter=20
+                                   spaceAfter=10
                                )))
-        story.append(Spacer(1, 18))
+        story.append(Spacer(1, 12))
         
         # Current and last month calculation
         current_date = datetime.now()
@@ -414,44 +414,43 @@ def generate_regional_price_trend_report(df, wsp_df=None):
         # Get unique regions
         regions = df['Region(District)'].unique()
         
-        # Generate report with two regions per page
-        for i in range(0, len(regions), 2):
-            # Prepare to store two regions on this page
-            regions_on_page = regions[i:i+2]
+        # Generate report for all regions
+        for region in regions:
+            # Create a KeepTogether frame to prevent page breaks within region content
+            region_story = []
+            region_df = df[df['Region(District)'] == region].copy()
             
-            for region in regions_on_page:
-                region_df = df[df['Region(District)'] == region].copy()
-                story.append(Paragraph(f"{region}", region_style))
-                story.append(Spacer(1, 12))
-                
-                # Create comprehensive metric progression for different metrics
-                # Primary metrics first
-                create_comprehensive_metric_progression(
-                    story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
-                )
-                
-                # Secondary metrics with smaller styling
-                create_comprehensive_metric_progression(
-                    story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True
-                )
-                
-                create_comprehensive_metric_progression(
-                    story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True
-                )
-                
-                # Return to primary styling for Net metric
-                create_comprehensive_metric_progression(
-                    story, region_df, current_date, last_month, 'Net', 'NOD', styles
-                )
-                
-                # Create WSP progression if WSP data is available
-                create_wsp_progression(story, wsp_df, region, styles)
-                
-                # Add spacer between regions, but not a page break if two regions fit
-                if len(regions_on_page) > 1:
-                    story.append(Spacer(1, 20))
+            # Add region name
+            region_story.append(Paragraph(f"{region}", region_style))
+            region_story.append(Spacer(1, 8))
             
-            # Add page break after processing regions on this page
+            # Create comprehensive metric progression for different metrics
+            # Primary metrics first
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles
+            )
+            
+            # Secondary metrics with smaller styling
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True
+            )
+            
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True
+            )
+            
+            # Return to primary styling for Net metric
+            create_comprehensive_metric_progression(
+                region_story, region_df, current_date, last_month, 'Net', 'NOD', styles
+            )
+            
+            # Create WSP progression if WSP data is available
+            create_wsp_progression(region_story, wsp_df, region, styles)
+            
+            # Wrap region content in KeepTogether to prevent page breaks
+            story.append(KeepTogether(region_story))
+            
+            # Add page break after each region
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         
         # Build PDF
@@ -464,7 +463,6 @@ def generate_regional_price_trend_report(df, wsp_df=None):
     except Exception as e:
         print(f"Error generating report: {e}")
         raise
-
 def get_wsp_data():
     """
     Get WSP data from file upload in Streamlit
