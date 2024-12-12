@@ -302,7 +302,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             
             # Join the progression parts
             full_progression = " ".join(metric_progression_parts)
-            week_progression_text = " --- ".join(week_labels)
+            week_progression_text = " -- ".join(week_labels)
             
             # Add metric progression with larger font
             story.append(Paragraph(full_progression, large_price_style))
