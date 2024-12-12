@@ -406,7 +406,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
                                    alignment=TA_CENTER,
                                    spaceAfter=10
                                )))
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 3))
         
         # Current and last month calculation
         current_date = datetime.now()
@@ -423,7 +423,7 @@ def generate_regional_price_trend_report(df, wsp_df=None):
             
             # Add region name
             region_story.append(Paragraph(f"{region}", region_style))
-            region_story.append(Spacer(1, 8))
+            region_story.append(Spacer(1, 3))
             
             # Create comprehensive metric progression for different metrics
             # Primary metrics first
