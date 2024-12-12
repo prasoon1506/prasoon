@@ -19,28 +19,15 @@ import calendar
 import pandas as pd
 import io
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import streamlit as st
-import streamlit as st
-import pandas as pd
-import io
-from datetime import datetime, timedelta
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
     competitive_brands_wsp = {}
-    
     if include_competitive_brands:
-        competitive_brands_file = st.file_uploader(
-            "Upload Competitive Brands WSP Data File", 
-            type=['xlsx'], 
-            help="Upload an Excel file with multiple sheets, each representing a different brand's WSP data"
-        )
-        
+        competitive_brands_file = st.file_uploader("Upload Competitive Brands WSP Data File", type=['xlsx'],help="Upload an Excel file with multiple sheets, each representing a different brand's WSP data")
         if competitive_brands_file is not None:
             try:
-                # Read all sheets from the Excel file
                 xls = pd.ExcelFile(competitive_brands_file)
                 required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
                 
@@ -250,7 +237,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
             
             # Company's WSP data
-            brand_count = 1 if company_wsp_df else 0
+            brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
             
@@ -259,7 +246,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand)
             
             # Competitive brands' WSP data
-            if competitive_brands_wsp:
+            if competitive_brands_wsp is not None:
                 brand_names = list(competitive_brands_wsp.keys())
                 for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
                     # Check if this is the last brand
