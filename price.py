@@ -273,7 +273,8 @@ def get_wsp_data():
     return None
 def save_regional_price_trend_report(df):
     wsp_df = get_wsp_data()
-    return generate_regional_price_trend_report(df, wsp_df)
+    competitive_brands_wsp_df = get_competitive_brands_wsp_data()
+    return generate_regional_price_trend_report(df, wsp_df,competitive_brands_wsp_df)
 def convert_dataframe_to_pdf(df, filename):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
