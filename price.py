@@ -63,7 +63,7 @@ def generate_regional_price_trend_report(df):
         # Prepare buffer for PDF
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                                rightMargin=5, leftMargin=5, 
+                                rightMargin=30, leftMargin=30, 
                                 topMargin=30, bottomMargin=30)
         
         # Get sample styles
@@ -106,7 +106,7 @@ def generate_regional_price_trend_report(df):
         large_price_style = ParagraphStyle(
             'LargePriceStyle',
             parent=styles['Normal'],
-            fontSize=14,
+            fontSize=12,
             spaceAfter=6,
             textColor=colors.darkblue
         )
@@ -222,7 +222,7 @@ def generate_regional_price_trend_report(df):
                 
                 # Join the progression parts
                 full_progression = " ".join(metric_progression_parts)
-                date_progression_text = " ----- ".join(dates)
+                date_progression_text = " ---- ".join(dates)
                 
                 # Add metric progression with larger font
                 story.append(Paragraph(full_progression, large_price_style))
