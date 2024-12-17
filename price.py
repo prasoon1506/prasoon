@@ -157,9 +157,9 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
                 
                 if is_secondary_metric:
                     if current_month_change == 0:
-                        current_month_change_text = f"{title}: No Change"
+                        current_month_change_text = f"Net Change in {title} (Current Month): No Change"
                     else:
-                        current_month_change_text = f"{title}: {current_month_change:+.0f} Rs."
+                        current_month_change_text = f"Net Change in {title} (Current Month): {current_month_change:+.0f} Rs."
                 else:
                     if current_month_change == 0:
                         current_month_change_text = f"Net Change in {title} (Current Month): 0 Rs."
@@ -235,7 +235,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
         total_change = float(metric_values[-1]) - float(metric_values[0])
         
         # Current month change (from Week-1 Nov to Week-1 Dec)
-        current_month_change = float(metric_values[4]) - float(metric_values[0])
+        current_month_change = float(metric_values[5]) - float(metric_values[3])
         
         if total_change == 0:
             total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: 0 Rs."
