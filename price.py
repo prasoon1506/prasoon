@@ -311,7 +311,7 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
         except ValueError:
             return len(region_order)
     df_to_save['region_sort_key'] = df_to_save['Region(District)'].apply(custom_region_sort)
-    df_to_save = df_to_save.sort_values(['region_sort_key', 'Date']).drop(columns=['region_sort_key'])
+    df_to_save = df_to_save.sort_values(['region_sort_key']).drop(columns=['region_sort_key'])
     output = io.BytesIO()
     if download_format == 'xlsx':
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
