@@ -58,32 +58,16 @@ def get_start_data_point(df, reference_date):
         return last_data_of_prev_month.iloc[-1]
     return None
 def get_start_data_point_current_month(df, reference_date):
-    """
-    Find the data point for the start of the current month, 
-    preferring 30th Nov if available, otherwise use the first available data point
-    """
-    # First try to find data on 30th November
-    nov_30_data = df[(df['Date'].dt.year == reference_date.year) & 
-                     (df['Date'].dt.month == 11) & 
-                     (df['Date'].dt.day == 30)]
+    nov_30_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == 11) & (df['Date'].dt.day == 30)]
     if not nov_30_data.empty:
         return nov_30_data.iloc[-1]
-    
-    # If no data on 30th Nov, try first day of December
-    first_day_data = df[(df['Date'].dt.year == reference_date.year) & 
-                        (df['Date'].dt.month == 12) & 
-                        (df['Date'].dt.day == 1)]
+    first_day_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == 12) & (df['Date'].dt.day == 1)]
     if not first_day_data.empty:
         return first_day_data.iloc[0]
-    
-    # If still no data, look for last data point in November
-    nov_data = df[(df['Date'].dt.year == reference_date.year) & 
-                  (df['Date'].dt.month == 11)]
+    nov_data = df[(df['Date'].dt.year == reference_date.year) & (df['Date'].dt.month == 11)]
     if not nov_data.empty:
         return nov_data.iloc[-1]
-    
     return None
-
 def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
     if is_secondary_metric:
         month_style = ParagraphStyle(f'{title}MonthStyle',parent=styles['Normal'],textColor=colors.darkgreen,fontSize=10,spaceAfter=2)
@@ -94,28 +78,19 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         normal_style = styles['Normal']
         large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=2)
         total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=2,fontName='Helvetica-Bold')
-    
     if not is_secondary_metric:
         story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
-    
-    # Get start data point for last month progression
     start_data_point = get_start_data_point(region_df, last_month)
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
-    
-    # Get start data point for current month progression
     current_month_start_data_point = get_start_data_point_current_month(region_df, current_date)
-    
-    # Progression for last month
     progression_df = region_df[(region_df['Date'] >= start_data_point['Date']) & (region_df['Date'] <= current_date)].copy().sort_values('Date')
-    
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
-    
     if not is_secondary_metric:
         metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
         dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
@@ -134,27 +109,18 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         date_progression_text = " ----- ".join(dates)
         story.append(Paragraph(full_progression, large_price_style))
         story.append(Paragraph(date_progression_text, normal_style))
-    
     if len(progression_df[metric_column]) > 1:
         # Last month total change
         start_value = progression_df[metric_column].iloc[0]
         end_value = progression_df[metric_column].iloc[-1]
         total_change = end_value - start_value
-        
-        # Prepare to add current month change
         current_month_change_text = "No current month data available"
         if current_month_start_data_point is not None:
-            # Find the last value in the current month for comparison
-            current_month_df = region_df[
-                (region_df['Date'] >= current_month_start_data_point['Date']) & 
-                (region_df['Date'] <= current_date)
-            ]
-            
+            current_month_df = region_df[(region_df['Date'] >= current_month_start_data_point['Date']) & (region_df['Date'] <= current_date)]
             if not current_month_df.empty:
                 current_month_start_value = current_month_start_data_point[metric_column]
                 current_month_end_value = current_month_df[metric_column].iloc[-1]
                 current_month_change = current_month_end_value - current_month_start_value
-                
                 if is_secondary_metric:
                     if current_month_change == 0:
                         current_month_change_text = f"Net Change in {title} (Current Month): No Change"
@@ -165,16 +131,12 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
                         current_month_change_text = f"Net Change in {title} (Current Month): 0 Rs."
                     else:
                         current_month_change_text = f"Net Change in {title} (Current Month): {current_month_change:+.0f} Rs."
-        
-        # Add last month total change
         if is_secondary_metric:
             if total_change == 0:
                 total_change_text = f"Net Change in {title} from 1st Nov.: No Change"
             else:
                 total_change_text = f"Net Change in {title} from 1st Nov.: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
-            
-            # Add current month change
             story.append(Paragraph(current_month_change_text, total_change_style))
         else:
             if total_change == 0:
@@ -388,14 +350,14 @@ def convert_dataframe_to_pdf(df, filename):
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
     # Define the custom region order
     region_order = [
-        'GJ(Ahmedabad)', 'GJ(Surat)', 
+        'GJ (Ahmedabad)', 'GJ (Surat)', 
         'RJ(Jaipur)', 'RJ(Udaipur)', 
-        'HY(Gurgaon)', 
-        'PB(Bhatinda)', 
+        'HY (Gurgaon)', 
+        'PB (Bhatinda)', 
         'Delhi', 
-        'CG(Raipur)', 
-        'ORR(Khorda)', 'ORR(Sambalpur)', 
-        'UP(Gaziabad)', 
+        'CG (Raipur)', 
+        'ORR (Khorda)', 'ORR (Sambalpur)', 
+        'UP (Gaziabad)', 
         'M.P.(East)[Balaghat]', 
         'M.P.(West)[Indore]', 
         'M.H.(East)[Nagpur Urban]'
