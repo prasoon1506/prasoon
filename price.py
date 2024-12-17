@@ -173,12 +173,32 @@ def save_regional_price_trend_report(df):
     return generate_regional_price_trend_report(df, company_wsp_df, competitive_brands_wsp)
 def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_brands_wsp=None):
     try:
+        # Predefined order of regions
+        region_order = [
+            'GJ(Ahmedabad)', 'GJ(Surat)', 
+            'RJ(Jaipur)', 'RJ(Udaipur)', 
+            'HY(Gurgaon)', 
+            'PB(Bhatinda)', 
+            'Delhi', 
+            'CG(Raipur)', 
+            'ORR(Khorda)', 'ORR(Sambalpur)', 
+            'UP(Gaziabad)', 
+            'M.P.(East)[Balaghat]', 
+            'M.P.(West)[Indore]', 
+            'M.H.(East)[Nagpur Urban]'
+        ]
+
         required_columns = ['Date', 'Region(District)', 'Inv.', 'Net', 'RD', 'STS']
         for col in required_columns:
             if col not in df.columns:
                 raise ValueError(f"Missing required column: {col}")
+        
         df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
-        df = df.sort_values(['Region(District)', 'Date'])
+        
+        # Create a custom sorting key based on the predefined order
+        df['region_order'] = df['Region(District)'].map({region: idx for idx, region in enumerate(region_order)})
+        df = df.sort_values(['region_order', 'Date'])
+        
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=8, leftMargin=1, topMargin=5, bottomMargin=2)
         styles = getSampleStyleSheet()
@@ -188,30 +208,41 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
         story.append(Paragraph("Regional Price Trend Analysis Report", title_style))
         story.append(Paragraph("Comprehensive Price Movement Insights", ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=12, textColor=colors.red,alignment=TA_CENTER,spaceAfter=10)))
         story.append(Spacer(1, 0))
+        
         current_date = datetime.now()
         last_month = current_date.replace(day=1) - timedelta(days=1)
-        regions = df['Region(District)'].unique()
+        
+        # Use the predefined order for regions
+        regions = [region for region in region_order if region in df['Region(District)'].unique()]
+        
         for region in regions:
             region_story = []
             region_df = df[df['Region(District)'] == region].copy()
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
+            
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
+            
             brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
+            
             is_last_brand = (brand_count == 1)
+            
             create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+            
             if competitive_brands_wsp:
-              brand_names = list(competitive_brands_wsp.keys())
-              for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
-                is_last_brand = (i == len(brand_names) - 1)
-                create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+                brand_names = list(competitive_brands_wsp.keys())
+                for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
+                    is_last_brand = (i == len(brand_names) - 1)
+                    create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+            
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
+        
         doc.build(story)
         buffer.seek(0)
         return buffer
@@ -258,46 +289,87 @@ def convert_dataframe_to_pdf(df, filename):
     buffer.seek(0)
     return buffer
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
+    # Define the custom region order
+    region_order = [
+        'GJ(Ahmedabad)', 'GJ(Surat)', 
+        'RJ(Jaipur)', 'RJ(Udaipur)', 
+        'HY(Gurgaon)', 
+        'PB(Bhatinda)', 
+        'Delhi', 
+        'CG(Raipur)', 
+        'ORR(Khorda)', 'ORR(Sambalpur)', 
+        'UP(Gaziabad)', 
+        'M.P.(East)[Balaghat]', 
+        'M.P.(West)[Indore]', 
+        'M.H.(East)[Nagpur Urban]'
+    ]
+
     if 'processed_dataframe' in st.session_state:
         df = st.session_state['processed_dataframe']
+    
     df_to_save = df.copy()
+    
     if 'Date' in df_to_save.columns:
         df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
         if start_date:
             df_to_save = df_to_save[df_to_save['Date'] >= start_date]
             df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
+
+    # Create a custom sorting key based on the predefined order
+    def custom_region_sort(region):
+        try:
+            return region_order.index(region)
+        except ValueError:
+            # If region is not in the predefined list, place it at the end
+            return len(region_order)
+
+    # Sort the dataframe based on the custom region order
+    df_to_save['region_sort_key'] = df_to_save['Region(District)'].apply(custom_region_sort)
+    df_to_save = df_to_save.sort_values(['region_sort_key', 'Date']).drop(columns=['region_sort_key'])
+
     output = io.BytesIO()
+    
     if download_format == 'xlsx':
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
+            
             dark_blue = '#2C3E50'
             white = '#FFFFFF'
             light_gray = '#F2F2F2'
+            
             format_header = workbook.add_format({'bold': True, 'font_size': 14,'bg_color': dark_blue,'font_color': white,'align': 'center','valign': 'vcenter','border': 1,'border_color': '#000000'})
             format_general = workbook.add_format({'font_size': 12,'valign': 'vcenter','align': 'center'})
             format_alternating = workbook.add_format({'font_size': 12,'bg_color': light_gray,'valign': 'vcenter','align': 'center'})
+            
             worksheet.set_row(0, 30, format_header)
+            
             for row_num in range(1, len(df_to_save) + 1):
                 if row_num % 2 == 0:
                     worksheet.set_row(row_num, None, format_alternating)
                 else:
                     worksheet.set_row(row_num, None, format_general)
+            
             for col_num, col_name in enumerate(df_to_save.columns):
                 max_len = max(df_to_save[col_name].astype(str).map(len).max(),len(str(col_name)))
                 worksheet.set_column(col_num, col_num, max_len + 2, format_general)
+            
             if 'MoM Change' in df_to_save.columns:
                 mom_change_col_index = df_to_save.columns.get_loc('MoM Change')
                 format_negative = workbook.add_format({'bg_color': '#FFC7CE','font_size': 12,'align': 'center','valign': 'vcenter'})
                 format_zero = workbook.add_format({'bg_color': '#D9D9D9','font_size': 12,'align': 'center','valign': 'vcenter'})
                 format_positive = workbook.add_format({'bg_color': '#C6EFCE','font_size': 12,'align': 'center','valign': 'vcenter'})
+                
                 worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell', 'criteria': '<', 'value': 0, 'format': format_negative})
                 worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '=','value': 0,'format': format_zero})
                 worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '>','value': 0, 'format': format_positive})
+            
             writer.close()
+    
     elif download_format == 'pdf':
         output = convert_dataframe_to_pdf(df_to_save, 'processed_price_tracker.pdf')
+    
     output.seek(0)
     return output
 def parse_date(date_str):
