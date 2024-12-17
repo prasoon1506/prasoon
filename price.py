@@ -93,7 +93,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
         normal_style = styles['Normal']
         large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
-        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=4,fontName='Helvetica-Bold')
+        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=2,fontName='Helvetica-Bold')
     
     if not is_secondary_metric:
         story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
@@ -192,7 +192,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=2)
     large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=2)
-    total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=4, fontName='Helvetica-Bold')
+    total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=2, fontName='Helvetica-Bold')
     
     if wsp_df is None:
         return
@@ -263,7 +263,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
     
     story.append(Spacer(1, 0))
     if not is_last_brand:
-        story.append(HRFlowable(width="100%",thickness=1,lineCap='round',color=colors.black,spaceBefore=6,spaceAfter=6))
+        story.append(HRFlowable(width="100%",thickness=1,lineCap='round',color=colors.black,spaceBefore=2,spaceAfter=2))
 def save_regional_price_trend_report(df):
     company_wsp_df = get_wsp_data()
     competitive_brands_wsp = get_competitive_brands_wsp_data()
@@ -297,7 +297,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
         df = df.sort_values(['region_order', 'Date'])
         
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=8, leftMargin=1, topMargin=5, bottomMargin=2)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=8, leftMargin=1, topMargin=5, bottomMargin=1)
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('TitleStyle',parent=styles['Title'],fontSize=20, textColor=colors.darkblue,alignment=TA_CENTER,spaceAfter=10)
         region_style = ParagraphStyle('RegionStyle',parent=styles['Heading2'], textColor=colors.blue,spaceAfter=3,fontSize=14)
