@@ -57,6 +57,33 @@ def get_start_data_point(df, reference_date):
     if not last_data_of_prev_month.empty:
         return last_data_of_prev_month.iloc[-1]
     return None
+def get_start_data_point_current_month(df, reference_date):
+    """
+    Find the data point for the start of the current month, 
+    preferring 30th Nov if available, otherwise use the first available data point
+    """
+    # First try to find data on 30th November
+    nov_30_data = df[(df['Date'].dt.year == reference_date.year) & 
+                     (df['Date'].dt.month == 11) & 
+                     (df['Date'].dt.day == 30)]
+    if not nov_30_data.empty:
+        return nov_30_data.iloc[-1]
+    
+    # If no data on 30th Nov, try first day of December
+    first_day_data = df[(df['Date'].dt.year == reference_date.year) & 
+                        (df['Date'].dt.month == 12) & 
+                        (df['Date'].dt.day == 1)]
+    if not first_day_data.empty:
+        return first_day_data.iloc[0]
+    
+    # If still no data, look for last data point in November
+    nov_data = df[(df['Date'].dt.year == reference_date.year) & 
+                  (df['Date'].dt.month == 11)]
+    if not nov_data.empty:
+        return nov_data.iloc[-1]
+    
+    return None
+
 def create_comprehensive_metric_progression(story, region_df, current_date, last_month, metric_column, title, styles, is_secondary_metric=False):
     if is_secondary_metric:
         month_style = ParagraphStyle(f'{title}MonthStyle',parent=styles['Normal'],textColor=colors.darkgreen,fontSize=12,spaceAfter=4)
@@ -67,18 +94,28 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         normal_style = styles['Normal']
         large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
         total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=14,fontName='Helvetica-Bold')
+    
     if not is_secondary_metric:
         story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
+    
+    # Get start data point for last month progression
     start_data_point = get_start_data_point(region_df, last_month)
     if start_data_point is None:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
+    
+    # Get start data point for current month progression
+    current_month_start_data_point = get_start_data_point_current_month(region_df, current_date)
+    
+    # Progression for last month
     progression_df = region_df[(region_df['Date'] >= start_data_point['Date']) & (region_df['Date'] <= current_date)].copy().sort_values('Date')
+    
     if progression_df.empty:
         story.append(Paragraph("No data available for this period", normal_style))
         story.append(Spacer(1, 0 if is_secondary_metric else 0))
         return
+    
     if not is_secondary_metric:
         metric_values = progression_df[metric_column].apply(lambda x: f"{x:.0f}").tolist()
         dates = progression_df['Date'].dt.strftime('%d-%b').tolist()
@@ -97,30 +134,69 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         date_progression_text = " ----- ".join(dates)
         story.append(Paragraph(full_progression, large_price_style))
         story.append(Paragraph(date_progression_text, normal_style))
+    
     if len(progression_df[metric_column]) > 1:
+        # Last month total change
         start_value = progression_df[metric_column].iloc[0]
         end_value = progression_df[metric_column].iloc[-1]
         total_change = end_value - start_value
+        
+        # Prepare to add current month change
+        current_month_change_text = "No current month data available"
+        if current_month_start_data_point is not None:
+            # Find the last value in the current month for comparison
+            current_month_df = region_df[
+                (region_df['Date'] >= current_month_start_data_point['Date']) & 
+                (region_df['Date'] <= current_date)
+            ]
+            
+            if not current_month_df.empty:
+                current_month_start_value = current_month_start_data_point[metric_column]
+                current_month_end_value = current_month_df[metric_column].iloc[-1]
+                current_month_change = current_month_end_value - current_month_start_value
+                
+                if is_secondary_metric:
+                    if current_month_change == 0:
+                        current_month_change_text = f"{title}: No Change"
+                    else:
+                        current_month_change_text = f"{title}: {current_month_change:+.0f} Rs."
+                else:
+                    if current_month_change == 0:
+                        current_month_change_text = f"Net Change in {title} (Current Month): 0 Rs."
+                    else:
+                        current_month_change_text = f"Net Change in {title} (Current Month): {current_month_change:+.0f} Rs."
+        
+        # Add last month total change
         if is_secondary_metric:
             if total_change == 0:
                 total_change_text = f"{title}: No Change"
             else:
                 total_change_text = f"{title}: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
+            
+            # Add current month change
+            story.append(Paragraph(current_month_change_text, total_change_style))
         else:
             if total_change == 0:
                 total_change_text = f"Net Change in {title}: 0 Rs."
             else:
                 total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
+            
+            # Add current month change
+            story.append(Paragraph(current_month_change_text, total_change_style))
+    
     story.append(Spacer(1, 0 if is_secondary_metric else 0))
+
 def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_last_brand=False, company_wsp_df=None):
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=6)
     large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=6)
     total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=14, fontName='Helvetica-Bold')
+    
     if wsp_df is None:
         return
+    
     region_wsp = wsp_df[wsp_df['Region(District)'] == region]
     if region_wsp.empty:
         story.append(Paragraph(f"No WSP data available for {region}" + 
@@ -128,12 +204,15 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
                                 normal_style))
         story.append(Spacer(1, 0))
         return
+    
     wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec','Week-2 Dec']
     metric_values = region_wsp[wsp_columns].values.flatten().tolist()
     week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec','W-2 Dec']
+    
     header_text = f"WSP Progression from November to December 2024" + \
                   (f" - {brand_name}" if brand_name else "")
     story.append(Paragraph(header_text + ":-", month_style))
+    
     metric_progression_parts = []
     for i in range(len(metric_values)):
         metric_progression_parts.append(f"{metric_values[i]:.0f}")
@@ -145,17 +224,34 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
                 metric_progression_parts.append(f'<sup><font color="red" size="7">{change:.0f}</font></sup>→')
             else:
                 metric_progression_parts.append(f'<sup><font size="8">00</font></sup>→')
+    
     full_progression = " ".join(metric_progression_parts)
     week_progression_text = " -- ".join(week_labels)
     story.append(Paragraph(full_progression, large_price_style))
     story.append(Paragraph(week_progression_text, normal_style))
+    
     if len(metric_values) > 1:
+        # Total change from start to end of the data
         total_change = float(metric_values[-1]) - float(metric_values[0])
+        
+        # Current month change (from Week-1 Nov to Week-1 Dec)
+        current_month_change = float(metric_values[4]) - float(metric_values[0])
+        
         if total_change == 0:
             total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: 0 Rs."
         else:
             total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
+        
         story.append(Paragraph(total_change_text, total_change_style))
+        
+        # Current month change text
+        if current_month_change == 0:
+            current_month_change_text = f"Net Change in WSP (Current Month){' - ' + brand_name if brand_name else ''}: 0 Rs."
+        else:
+            current_month_change_text = f"Net Change in WSP (Current Month){' - ' + brand_name if brand_name else ''}: {current_month_change:+.0f} Rs."
+        
+        story.append(Paragraph(current_month_change_text, total_change_style))
+    
     if company_wsp_df is not None and brand_name is not None:
         company_region_wsp = company_wsp_df[company_wsp_df['Region(District)'] == region]
         if not company_region_wsp.empty and not region_wsp.empty:
@@ -164,6 +260,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
             wsp_difference = company_w1_dec_wsp - competitive_w1_dec_wsp
             wsp_diff_text = f"Difference in WSP between JKLC and {brand_name} on W-1 December is {wsp_difference:+.0f} Rs."
             story.append(Paragraph(wsp_diff_text, total_change_style))
+    
     story.append(Spacer(1, 0))
     if not is_last_brand:
         story.append(HRFlowable(width="100%",thickness=1,lineCap='round',color=colors.black,spaceBefore=6,spaceAfter=6))
