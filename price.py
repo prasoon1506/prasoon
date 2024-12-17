@@ -180,7 +180,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
         df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
         df = df.sort_values(['Region(District)', 'Date'])
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=3, leftMargin=3, topMargin=5, bottomMargin=2)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=5, leftMargin=1, topMargin=5, bottomMargin=2)
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('TitleStyle',parent=styles['Title'],fontSize=20, textColor=colors.darkblue,alignment=TA_CENTER,spaceAfter=10)
         region_style = ParagraphStyle('RegionStyle',parent=styles['Heading2'], textColor=colors.blue,spaceAfter=8,fontSize=14)
