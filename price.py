@@ -93,7 +93,7 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'],textColor=colors.green,spaceAfter=6)
         normal_style = styles['Normal']
         large_price_style = ParagraphStyle('LargePriceStyle',parent=styles['Normal'],fontSize=14,spaceAfter=6)
-        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=8,fontName='Helvetica-Bold')
+        total_change_style = ParagraphStyle('TotalChangeStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,alignment=TA_LEFT,spaceAfter=4,fontName='Helvetica-Bold')
     
     if not is_secondary_metric:
         story.append(Paragraph(f"{title} Progression from {last_month.strftime('%B %Y')} to {current_date.strftime('%B %Y')}:-", month_style))
@@ -192,7 +192,7 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=2)
     large_price_style = ParagraphStyle('LargePriceStyle', parent=styles['Normal'], fontSize=14, spaceAfter=2)
-    total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=8, fontName='Helvetica-Bold')
+    total_change_style = ParagraphStyle('TotalChangeStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, alignment=TA_LEFT, spaceAfter=4, fontName='Helvetica-Bold')
     
     if wsp_df is None:
         return
