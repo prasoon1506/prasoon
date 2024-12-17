@@ -128,9 +128,9 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
                                 normal_style))
         story.append(Spacer(1, 0))
         return
-    wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
+    wsp_columns = ['Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec','Week-2 Dec']
     metric_values = region_wsp[wsp_columns].values.flatten().tolist()
-    week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec']
+    week_labels = ['W-1 Nov', 'W-2 Nov', 'W-3 Nov', 'W-4 Nov', 'W-1 Dec','W-2 Dec']
     header_text = f"WSP Progression from November to December 2024" + \
                   (f" - {brand_name}" if brand_name else "")
     story.append(Paragraph(header_text + ":-", month_style))
@@ -180,7 +180,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
         df['Date'] = pd.to_datetime(df['Date'], format='%d-%b %Y')
         df = df.sort_values(['Region(District)', 'Date'])
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=2, leftMargin=2, topMargin=5, bottomMargin=2)
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=1, leftMargin=1, topMargin=5, bottomMargin=2)
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('TitleStyle',parent=styles['Title'],fontSize=20, textColor=colors.darkblue,alignment=TA_CENTER,spaceAfter=10)
         region_style = ParagraphStyle('RegionStyle',parent=styles['Heading2'], textColor=colors.blue,spaceAfter=8,fontSize=14)
@@ -228,7 +228,7 @@ def get_wsp_data():
                     wsp_df = pd.read_csv(wsp_file)
                 else:
                     wsp_df = pd.read_excel(wsp_file)
-                required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec']
+                required_columns = ['Region(District)', 'Week-1 Nov', 'Week-2 Nov', 'Week-3 Nov', 'Week-4 Nov', 'Week-1 Dec','Week-2 Dec']
                 for col in required_columns:
                     if col not in wsp_df.columns:
                         st.error(f"Missing required WSP column: {col}")
