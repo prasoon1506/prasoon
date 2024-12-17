@@ -175,14 +175,14 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
     try:
         # Predefined order of regions
         region_order = [
-            'GJ(Ahmedabad)', 'GJ(Surat)', 
+            'GJ (Ahmedabad)', 'GJ (Surat)', 
             'RJ(Jaipur)', 'RJ(Udaipur)', 
-            'HY(Gurgaon)', 
-            'PB(Bhatinda)', 
+            'HY (Gurgaon)', 
+            'PB (Bhatinda)', 
             'Delhi', 
-            'CG(Raipur)', 
-            'ORR(Khorda)', 'ORR(Sambalpur)', 
-            'UP(Gaziabad)', 
+            'CG (Raipur)', 
+            'ORR (Khorda)', 'ORR (Sambalpur)', 
+            'UP (Gaziabad)', 
             'M.P.(East)[Balaghat]', 
             'M.P.(West)[Indore]', 
             'M.H.(East)[Nagpur Urban]'
