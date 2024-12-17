@@ -169,18 +169,18 @@ def create_comprehensive_metric_progression(story, region_df, current_date, last
         # Add last month total change
         if is_secondary_metric:
             if total_change == 0:
-                total_change_text = f"{title}: No Change"
+                total_change_text = f"Net Change in {title} from 1st Nov.: No Change"
             else:
-                total_change_text = f"{title}: {total_change:+.0f} Rs."
+                total_change_text = f"Net Change in {title} from 1st Nov.: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
             
             # Add current month change
             story.append(Paragraph(current_month_change_text, total_change_style))
         else:
             if total_change == 0:
-                total_change_text = f"Net Change in {title}: 0 Rs."
+                total_change_text = f"Net Change in {title} from 1st Nov.: 0 Rs."
             else:
-                total_change_text = f"Net Change in {title}: {total_change:+.0f} Rs."
+                total_change_text = f"Net Change in {title} from 1st Nov.: {total_change:+.0f} Rs."
             story.append(Paragraph(total_change_text, total_change_style))
             
             # Add current month change
@@ -238,9 +238,9 @@ def create_wsp_progression(story, wsp_df, region, styles, brand_name=None, is_la
         current_month_change = float(metric_values[5]) - float(metric_values[3])
         
         if total_change == 0:
-            total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: 0 Rs."
+            total_change_text = f"Net Change in WSP from W-1 Nov{' - ' + brand_name if brand_name else ''}: 0 Rs."
         else:
-            total_change_text = f"Net Change in WSP{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
+            total_change_text = f"Net Change in WSP from W-1 Nov{' - ' + brand_name if brand_name else ''}: {total_change:+.0f} Rs."
         
         story.append(Paragraph(total_change_text, total_change_style))
         
