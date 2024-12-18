@@ -338,12 +338,10 @@ def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
             
-            # Set print titles to repeat the header on every page
-            worksheet.set_print_titles(0, 0)
+            # Set print titles (repeat first row on every page)
+            worksheet.repeat_rows(0)
             
             # Additional print settings for better printing
-            worksheet.set_print_option('center_horizontally', True)
-            worksheet.set_print_option('fit_page', 1)
             worksheet.set_page_view()
             
             dark_blue = '#2C3E50'
