@@ -23,6 +23,7 @@ import io
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib import colors
 import streamlit as st
+from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
