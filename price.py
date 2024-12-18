@@ -296,54 +296,139 @@ def convert_dataframe_to_pdf(df, filename):
     buffer.seek(0)
     return buffer
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
-    region_order = ['GJ (Ahmedabad)', 'GJ (Surat)','RJ(Jaipur)', 'RJ(Udaipur)','HY (Gurgaon)','PB (Bhatinda)','Delhi','CG (Raipur)', 'ORR (Khorda)', 'ORR (Sambalpur)', 'UP (Gaziabad)', 'M.P.(East)[Balaghat]', 'M.P.(West)[Indore]', 'M.H.(East)[Nagpur Urban]']
+    # Predefined order of regions
+    region_order = [
+        'GJ (Ahmedabad)', 'GJ (Surat)', 
+        'RJ(Jaipur)', 'RJ(Udaipur)', 
+        'HY (Gurgaon)', 
+        'PB (Bhatinda)', 
+        'Delhi', 
+        'CG (Raipur)', 
+        'ORR (Khorda)', 'ORR (Sambalpur)', 
+        'UP (Gaziabad)', 
+        'M.P.(East)[Balaghat]', 
+        'M.P.(West)[Indore]', 
+        'M.H.(East)[Nagpur Urban]'
+    ]
+
     if 'processed_dataframe' in st.session_state:
         df = st.session_state['processed_dataframe']
+    
     df_to_save = df.copy()
+    
+    # Create a custom sorting key based on the predefined order
+    df_to_save['region_order'] = df_to_save['Region(District)'].map({region: idx for idx, region in enumerate(region_order)})
+    df_to_save = df_to_save.sort_values(['region_order', 'Date'])
+    
+    # Drop the temporary sorting column
+    df_to_save = df_to_save.drop(columns=['region_order'])
+    
     if 'Date' in df_to_save.columns:
         df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
         if start_date:
             df_to_save = df_to_save[df_to_save['Date'] >= start_date]
             df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
-    def custom_region_sort(region):
-        try:
-            return region_order.index(region)
-        except ValueError:
-            return len(region_order)
-    df_to_save['region_sort_key'] = df_to_save['Region(District)'].apply(custom_region_sort)
-    df_to_save = df_to_save.sort_values(['region_sort_key']).drop(columns=['region_sort_key'])
+    
     output = io.BytesIO()
+    
     if download_format == 'xlsx':
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
+            
+            # Set print titles to repeat the header on every page
+            worksheet.set_print_titles(0, 0)
+            
+            # Additional print settings for better printing
+            worksheet.set_print_option('center_horizontally', True)
+            worksheet.set_print_option('fit_page', 1)
+            worksheet.set_page_view()
+            
             dark_blue = '#2C3E50'
             white = '#FFFFFF'
             light_gray = '#F2F2F2'
-            format_header = workbook.add_format({'bold': True, 'font_size': 14,'bg_color': dark_blue,'font_color': white,'align': 'center','valign': 'vcenter','border': 1,'border_color': '#000000'})
-            format_general = workbook.add_format({'font_size': 12,'valign': 'vcenter','align': 'center'})
-            format_alternating = workbook.add_format({'font_size': 12,'bg_color': light_gray,'valign': 'vcenter','align': 'center'})
+            
+            format_header = workbook.add_format({
+                'bold': True, 
+                'font_size': 14,
+                'bg_color': dark_blue,
+                'font_color': white,
+                'align': 'center',
+                'valign': 'vcenter',
+                'border': 1,
+                'border_color': '#000000',
+                'text_wrap': True
+            })
+            format_general = workbook.add_format({
+                'font_size': 12,
+                'valign': 'vcenter',
+                'align': 'center'
+            })
+            format_alternating = workbook.add_format({
+                'font_size': 12,
+                'bg_color': light_gray,
+                'valign': 'vcenter',
+                'align': 'center'
+            })
+            
             worksheet.set_row(0, 30, format_header)
+            
             for row_num in range(1, len(df_to_save) + 1):
                 if row_num % 2 == 0:
                     worksheet.set_row(row_num, None, format_alternating)
                 else:
                     worksheet.set_row(row_num, None, format_general)
+            
             for col_num, col_name in enumerate(df_to_save.columns):
                 max_len = max(df_to_save[col_name].astype(str).map(len).max(),len(str(col_name)))
                 worksheet.set_column(col_num, col_num, max_len + 2, format_general)
+            
             if 'MoM Change' in df_to_save.columns:
                 mom_change_col_index = df_to_save.columns.get_loc('MoM Change')
-                format_negative = workbook.add_format({'bg_color': '#FFC7CE','font_size': 12,'align': 'center','valign': 'vcenter'})
-                format_zero = workbook.add_format({'bg_color': '#D9D9D9','font_size': 12,'align': 'center','valign': 'vcenter'})
-                format_positive = workbook.add_format({'bg_color': '#C6EFCE','font_size': 12,'align': 'center','valign': 'vcenter'})
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell', 'criteria': '<', 'value': 0, 'format': format_negative})
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '=','value': 0,'format': format_zero})
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '>','value': 0, 'format': format_positive})
+                format_negative = workbook.add_format({
+                    'bg_color': '#FFC7CE',
+                    'font_size': 12,
+                    'align': 'center',
+                    'valign': 'vcenter'
+                })
+                format_zero = workbook.add_format({
+                    'bg_color': '#D9D9D9',
+                    'font_size': 12,
+                    'align': 'center',
+                    'valign': 'vcenter'
+                })
+                format_positive = workbook.add_format({
+                    'bg_color': '#C6EFCE',
+                    'font_size': 12,
+                    'align': 'center',
+                    'valign': 'vcenter'
+                })
+                
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
+                    'type': 'cell', 
+                    'criteria': '<', 
+                    'value': 0, 
+                    'format': format_negative
+                })
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
+                    'type': 'cell',
+                    'criteria': '=',
+                    'value': 0,
+                    'format': format_zero
+                })
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
+                    'type': 'cell',
+                    'criteria': '>',
+                    'value': 0, 
+                    'format': format_positive
+                })
+            
             writer.close()
+    
     elif download_format == 'pdf':
         output = convert_dataframe_to_pdf(df_to_save, 'processed_price_tracker.pdf')
+    
     output.seek(0)
     return output
 def parse_date(date_str):
