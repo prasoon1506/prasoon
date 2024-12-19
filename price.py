@@ -32,17 +32,40 @@ def calculate_effective_nod(df, region, month, year):
     - Middle 10 days: 30% weightage
     - Last 10 days: 50% weightage
     
+    If date of 1st is not available, uses the last available NOD from previous month.
     If NOD changes within a period, weightage is distributed equally among days.
     """
-    # Filter data for the specified month and region
+    # Convert dates if they aren't already datetime
     df['Date'] = pd.to_datetime(df['Date'])
+    
+    # Get the start of the month we're calculating for
+    month_start = pd.Timestamp(year=year, month=month, day=1)
+    
+    # Get the last available NOD from previous months
+    prev_month_data = df[
+        (df['Region(District)'] == region) & 
+        (df['Date'] < month_start)
+    ].sort_values('Date', ascending=False)
+    
+    last_available_nod = None
+    if not prev_month_data.empty:
+        last_available_nod = prev_month_data.iloc[0]['Net']
+    
+    # Filter data for the specified month and region
     month_data = df[
         (df['Region(District)'] == region) & 
         (df['Date'].dt.month == month) & 
         (df['Date'].dt.year == year)
     ].copy()
     
-    if month_data.empty:
+    # If we have no data for this month but have a previous NOD, create a virtual entry
+    if month_data.empty and last_available_nod is not None:
+        month_data = pd.DataFrame([{
+            'Date': month_start,
+            'Net': last_available_nod,
+            'Region(District)': region
+        }])
+    elif month_data.empty and last_available_nod is None:
         return None
     
     # Sort by date
@@ -57,21 +80,37 @@ def calculate_effective_nod(df, region, month, year):
     middle_period = pd.date_range(start=f"{year}-{month:02d}-11", end=f"{year}-{month:02d}-20")
     last_period = pd.date_range(start=f"{year}-{month:02d}-21", end=f"{year}-{month:02d}-{days_in_month}")
     
-    # Calculate weighted NOD for each period
     def calculate_period_nod(period_dates, data, weight):
+        # If we have no data points in or before this period but have last_available_nod
+        if data[data['Date'] <= period_dates[-1]].empty and last_available_nod is not None:
+            return last_available_nod * weight
+            
         period_data = data[data['Date'].dt.date.isin(period_dates.date)]
         if period_data.empty:
-            # Use the closest previous value if no data in period
-            prev_data = data[data['Date'] < period_dates[0]].iloc[-1:] if not data[data['Date'] < period_dates[0]].empty else None
-            if prev_data is not None:
-                return prev_data['Net'].iloc[0] * weight
+            # Use the closest previous value
+            prev_data = data[data['Date'] < period_dates[0]]
+            if prev_data.empty and last_available_nod is not None:
+                return last_available_nod * weight
+            elif not prev_data.empty:
+                return prev_data.iloc[-1]['Net'] * weight
             return 0
         
         # Calculate days for each unique NOD value in the period
         nod_values = []
-        for _, row in period_data.iterrows():
+        current_period_start = period_dates[0]
+        
+        # If we have a value from previous period, use it until first change
+        if period_data.iloc[0]['Date'].date() > period_dates[0].date():
+            prev_data = data[data['Date'] < period_dates[0]]
+            initial_nod = last_available_nod if prev_data.empty else prev_data.iloc[-1]['Net']
+            days_until_first_change = (period_data.iloc[0]['Date'].date() - period_dates[0].date()).days
+            if days_until_first_change > 0:
+                nod_values.append((initial_nod, days_until_first_change))
+        
+        # Add all changes within the period
+        for idx, row in period_data.iterrows():
             next_change = period_data[period_data['Date'] > row['Date']].iloc[0]['Date'] if not period_data[period_data['Date'] > row['Date']].empty else period_dates[-1]
-            days_effective = (min(next_change, period_dates[-1]) - row['Date']).days + 1
+            days_effective = (min(next_change, period_dates[-1]).date() - row['Date'].date()).days + 1
             nod_values.append((row['Net'], days_effective))
         
         # Calculate weighted average for the period
@@ -94,7 +133,8 @@ def calculate_effective_nod(df, region, month, year):
         'last_period_nod': round(last_period_nod / 0.50, 2) if last_period_nod != 0 else 0,
         'first_period_contribution': round(first_period_nod, 2),
         'middle_period_contribution': round(middle_period_nod, 2),
-        'last_period_contribution': round(last_period_nod, 2)
+        'last_period_contribution': round(last_period_nod, 2),
+        'last_available_nod': last_available_nod
     }
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
