@@ -25,6 +25,78 @@ from reportlab.lib import colors
 import streamlit as st
 from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
+def calculate_effective_invoice(df, region, month, year):
+    df['Date'] = pd.to_datetime(df['Date'])
+    month_start = pd.Timestamp(year=year, month=month, day=1)
+    prev_month_data = df[(df['Region(District)'] == region) & (df['Date'] < month_start)].sort_values('Date', ascending=False)
+    last_available_invoice = None
+    if not prev_month_data.empty:
+        last_available_invoice = prev_month_data.iloc[0]['Inv.']
+    month_data = df[(df['Region(District)'] == region) & (df['Date'].dt.month == month) & (df['Date'].dt.year == year)].copy()
+    if month_data.empty and last_available_invoice is not None:
+        month_data = pd.DataFrame([{'Date': month_start,'Inv.': last_available_invoice,'Region(District)': region}])
+    elif month_data.empty and last_available_invoice is None:
+        return None
+    month_data = month_data.sort_values('Date')
+    last_day = pd.Timestamp(year, month, 1) + pd.offsets.MonthEnd(1)
+    days_in_month = last_day.day
+    first_period = pd.date_range(start=f"{year}-{month:02d}-01", end=f"{year}-{month:02d}-10")
+    middle_period = pd.date_range(start=f"{year}-{month:02d}-11", end=f"{year}-{month:02d}-20")
+    last_period = pd.date_range(start=f"{year}-{month:02d}-21", end=f"{year}-{month:02d}-{days_in_month}")
+    def calculate_period_invoice(period_dates, data, weight):
+        if data[data['Date'] <= period_dates[-1]].empty and last_available_invoice is not None:
+            return last_available_invoice * weight
+        period_data = data[data['Date'].dt.date.isin(period_dates.date)]
+        if period_data.empty:
+            prev_data = data[data['Date'] < period_dates[0]]
+            if prev_data.empty and last_available_invoice is not None:
+                return last_available_invoice * weight
+            elif not prev_data.empty:
+                return prev_data.iloc[-1]['Inv.'] * weight
+            return 0
+        invoice_values = []
+        if period_data.iloc[0]['Date'].date() > period_dates[0].date():
+            prev_data = data[data['Date'] < period_dates[0]]
+            initial_invoice = last_available_invoice if prev_data.empty else prev_data.iloc[-1]['Inv.']
+            days_until_first_change = (period_data.iloc[0]['Date'].date() - period_dates[0].date()).days
+            if days_until_first_change > 0:
+                invoice_values.append((initial_invoice, days_until_first_change))
+        for idx, row in period_data.iterrows():
+            next_change = period_data[period_data['Date'] > row['Date']].iloc[0]['Date'] if not period_data[period_data['Date'] > row['Date']].empty else period_dates[-1]
+            days_effective = (min(next_change, period_dates[-1]).date() - row['Date'].date()).days + 1
+            invoice_values.append((row['Inv.'], days_effective))
+        total_days = sum(days for _, days in invoice_values)
+        weighted_invoice = sum(invoice * (days / total_days) for invoice, days in invoice_values)
+        return weighted_invoice * weight
+    first_period_invoice = calculate_period_invoice(first_period, month_data, 0.20)
+    middle_period_invoice = calculate_period_invoice(middle_period, month_data, 0.30)
+    last_period_invoice = calculate_period_invoice(last_period, month_data, 0.50)
+    effective_invoice = first_period_invoice + middle_period_invoice + last_period_invoice
+    return {'effective_invoice': round(effective_invoice, 2),'first_period_invoice': round(first_period_invoice / 0.20, 2) if first_period_invoice != 0 else 0,'middle_period_invoice': round(middle_period_invoice / 0.30, 2) if middle_period_invoice != 0 else 0,'last_period_invoice': round(last_period_invoice / 0.50, 2) if last_period_invoice != 0 else 0,
+        'first_period_contribution': round(first_period_invoice, 2),'middle_period_contribution': round(middle_period_invoice, 2),'last_period_contribution': round(last_period_invoice, 2),'last_available_invoice': last_available_invoice}
+def create_effective_invoice_analysis(story, df, region, current_date, styles):
+    normal_style = styles['Normal']
+    month_style = ParagraphStyle('MonthStyle',parent=styles['Heading3'],textColor=colors.green,spaceAfter=2)
+    metric_style = ParagraphStyle('MetricStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,spaceAfter=2)
+    current_month = current_date.month
+    current_year = current_date.year
+    last_month = current_month - 1 if current_month > 1 else 12
+    last_month_year = current_year if current_month > 1 else current_year - 1
+    current_month_effective = calculate_effective_invoice(df, region, current_month, current_year)
+    last_month_effective = calculate_effective_invoice(df, region, last_month, last_month_year)
+    story.append(Paragraph("Effective Invoice Analysis:-", month_style))
+    table_data = [['Period', 'First 10 days (20%)', 'Middle 10 days (30%)', 'Last 10 days (50%)', 'Total Effective Invoice']]
+    if current_month_effective:
+        current_row = ['Current Month',f"Rs.{current_month_effective['first_period_invoice']:,.0f}\n(Cont: Rs.{current_month_effective['first_period_contribution']:,.0f})",f"Rs.{current_month_effective['middle_period_invoice']:,.0f}\n(Cont: Rs.{current_month_effective['middle_period_contribution']:,.0f})",f"Rs.{current_month_effective['last_period_invoice']:,.0f}\n(Cont: Rs.{current_month_effective['last_period_contribution']:,.0f})",f"Rs.{current_month_effective['effective_invoice']:,.2f}"]
+        table_data.append(current_row)
+    if last_month_effective:
+        last_row = ['Last Month',f"Rs.{last_month_effective['first_period_invoice']:,.0f}\n(Cont: Rs.{last_month_effective['first_period_contribution']:,.0f})",f"Rs.{last_month_effective['middle_period_invoice']:,.0f}\n(Cont: Rs.{last_month_effective['middle_period_contribution']:,.0f})",f"Rs.{last_month_effective['last_period_invoice']:,.0f}\n(Cont: Rs.{last_month_effective['last_period_contribution']:,.0f})",f"Rs.{last_month_effective['effective_invoice']:,.2f}"]
+        table_data.append(last_row)
+    if current_month_effective or last_month_effective:
+        t = Table(table_data, colWidths=[80, 110, 110, 110, 100])
+        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 9),('FONTSIZE', (0, 1), (-1, -1), 8),('GRID', (0, 0), (-1, -1), 1, colors.black),('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),('LEFTPADDING', (0, 0), (-1, -1), 3),('RIGHTPADDING', (0, 0), (-1, -1), 3),('TOPPADDING', (0, 0), (-1, -1), 3),('BOTTOMPADDING', (0, 0), (-1, -1), 3),]))
+        story.append(t)
+        story.append(Spacer(1, 6))
 def create_effective_nod_analysis(story, df, region, current_date, styles):
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle',parent=styles['Heading3'],textColor=colors.green,spaceAfter=2)
@@ -649,6 +721,53 @@ def main():
                       last_month_name = (dt.now().replace(day=1) - timedelta(days=1)).strftime('%B')
                       fig.add_trace(go.Bar(name=last_month_name,x=['First 10 Days', 'Middle 10 Days', 'Last 10 Days'],y=[last_month_effective['first_period_contribution'],last_month_effective['middle_period_contribution'],last_month_effective['last_period_contribution']],text=[f"₹{val:,.0f}" for val in [last_month_effective['first_period_contribution'],last_month_effective['middle_period_contribution'],last_month_effective['last_period_contribution']]],textposition='auto',))
                    fig.update_layout(title='Effective NOD Composition by Period',xaxis_title='Period',yaxis_title='Contribution to Effective NOD (₹)',barmode='group',height=400)
+                   st.plotly_chart(fig, use_container_width=True)
+                st.markdown("#### Effective Invoice Analysis")
+                current_month = dt.now().month
+                current_year = dt.now().year
+                current_month_effective_invoice = calculate_effective_invoice(df, selected_region_analysis, current_month, current_year)
+                last_month_effective_invoice = calculate_effective_invoice(df, selected_region_analysis,current_month - 1 if current_month > 1 else 12,current_year if current_month > 1 else current_year - 1)
+                col_eff_inv_1, col_eff_inv_2 = st.columns(2)
+                with col_eff_inv_1:
+                  st.markdown("##### Current Month Effective Invoice(Estimated)")
+                  if current_month_effective_invoice:
+                   st.metric("Effective Invoice", f"₹{current_month_effective_invoice['effective_invoice']:,.2f}")
+                   with st.expander("View Breakdown"):
+                      st.markdown(f"""
+            - First 10 days (20%): ₹{current_month_effective_invoice['first_period_invoice']:,.2f}
+              * Contribution: ₹{current_month_effective_invoice['first_period_contribution']:,.2f}
+            - Middle 10 days (30%): ₹{current_month_effective_invoice['middle_period_invoice']:,.2f}
+              * Contribution: ₹{current_month_effective_invoice['middle_period_contribution']:,.2f}
+            - Last 10 days (50%): ₹{current_month_effective_invoice['last_period_invoice']:,.2f}
+              * Contribution: ₹{current_month_effective_invoice['last_period_contribution']:,.2f}
+            """)
+                  else:
+                     st.info("No data available for current month")
+                with col_eff_inv_2:
+                  st.markdown("##### Last Month Effective Invoice")
+                  if last_month_effective_invoice:
+                    st.metric("Effective Invoice", f"₹{last_month_effective_invoice['effective_invoice']:,.2f}")
+                    with st.expander("View Breakdown"):
+                         st.markdown(f"""
+            - First 10 days (20%): ₹{last_month_effective_invoice['first_period_invoice']:,.2f}
+              * Contribution: ₹{last_month_effective_invoice['first_period_contribution']:,.2f}
+            - Middle 10 days (30%): ₹{last_month_effective_invoice['middle_period_invoice']:,.2f}
+              * Contribution: ₹{last_month_effective_invoice['middle_period_contribution']:,.2f}
+            - Last 10 days (50%): ₹{last_month_effective_invoice['last_period_invoice']:,.2f}
+              * Contribution: ₹{last_month_effective_invoice['last_period_contribution']:,.2f}
+            """)
+                  else:
+                     st.info("No data available for last month")
+                if current_month_effective_invoice or last_month_effective_invoice:
+                   st.markdown("##### Effective Invoice Composition")
+                   fig = go.Figure()
+                   if current_month_effective_invoice:
+                      current_month_name = dt.now().strftime('%B')
+                      fig.add_trace(go.Bar(name=current_month_name,x=['First 10 Days', 'Middle 10 Days', 'Last 10 Days'],y=[current_month_effective_invoice['first_period_contribution'],current_month_effective_invoice['middle_period_contribution'],current_month_effective_invoice['last_period_contribution']],text=[f"₹{val:,.0f}" for val in [current_month_effective_invoice['first_period_contribution'],current_month_effective_invoice['middle_period_contribution'],current_month_effective_invoice['last_period_contribution']]],textposition='auto',))
+                   if last_month_effective_invoice:
+                      last_month_name = (dt.now().replace(day=1) - timedelta(days=1)).strftime('%B')
+                      fig.add_trace(go.Bar(name=last_month_name,x=['First 10 Days', 'Middle 10 Days', 'Last 10 Days'],y=[last_month_effective_invoice['first_period_contribution'],last_month_effective_invoice['middle_period_contribution'],last_month_effective_invoice['last_period_contribution']],text=[f"₹{val:,.0f}" for val in [last_month_effective_invoice['first_period_contribution'],last_month_effective_invoice['middle_period_contribution'],last_month_effective_invoice['last_period_contribution']]],textposition='auto',))
+                   fig.update_layout(title='Effective Invoice Composition by Period',xaxis_title='Period',yaxis_title='Contribution to Effective Invoice (₹)',barmode='group',height=400)
                    st.plotly_chart(fig, use_container_width=True)
                 st.markdown("### Remarks")
                 remarks_df = region_analysis_df[['Date', 'Remarks']].dropna(subset=['Remarks'])
