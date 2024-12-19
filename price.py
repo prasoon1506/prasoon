@@ -649,7 +649,9 @@ def main():
                      if current_month_effective:
                        st.metric("Effective NOD", f"₹{current_month_effective['effective_nod']:,.2f}")
                        with st.expander("View Breakdown"):
-                            st.markdown(f"""- First 10 days (20%): ₹{current_month_effective['first_period_nod']:,.2f} * Contribution: ₹{current_month_effective['first_period_contribution']:,.2f}- Middle 10 days (30%): ₹{current_month_effective['middle_period_nod']:,.2f}* Contribution: ₹{current_month_effective['middle_period_contribution']:,.2f}- Last 10 days (50%): ₹{current_month_effective['last_period_nod']:,.2f}* Contribution: ₹{current_month_effective['last_period_contribution']:,.2f}""")
+                            st.markdown(f"""- First 10 days (20%): ₹{current_month_effective['first_period_nod']:,.2f} * Contribution: ₹{current_month_effective['first_period_contribution']:,.2f}
+                            - Middle 10 days (30%): ₹{current_month_effective['middle_period_nod']:,.2f}* Contribution: ₹{current_month_effective['middle_period_contribution']:,.2f}
+                            - Last 10 days (50%): ₹{current_month_effective['last_period_nod']:,.2f}* Contribution: ₹{current_month_effective['last_period_contribution']:,.2f}""")
                      else:
                         st.info("No data available for current month")
                 with col_eff_2:
@@ -657,7 +659,9 @@ def main():
                      if last_month_effective:
                          st.metric("Effective NOD", f"₹{last_month_effective['effective_nod']:,.2f}")
                          with st.expander("View Breakdown"):
-                             st.markdown(f"""- First 10 days (20%): ₹{last_month_effective['first_period_nod']:,.2f}* Contribution: ₹{last_month_effective['first_period_contribution']:,.2f}- Middle 10 days (30%): ₹{last_month_effective['middle_period_nod']:,.2f}* Contribution: ₹{last_month_effective['middle_period_contribution']:,.2f}- Last 10 days (50%): ₹{last_month_effective['last_period_nod']:,.2f}* Contribution: ₹{last_month_effective['last_period_contribution']:,.2f}""")
+                             st.markdown(f"""- First 10 days (20%): ₹{last_month_effective['first_period_nod']:,.2f}* Contribution: ₹{last_month_effective['first_period_contribution']:,.2f}
+                             - Middle 10 days (30%): ₹{last_month_effective['middle_period_nod']:,.2f}* Contribution: ₹{last_month_effective['middle_period_contribution']:,.2f}
+                             - Last 10 days (50%): ₹{last_month_effective['last_period_nod']:,.2f}* Contribution: ₹{last_month_effective['last_period_contribution']:,.2f}""")
                      else:
                          st.info("No data available for last month")
                 if current_month_effective or last_month_effective:
