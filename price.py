@@ -26,74 +26,41 @@ import streamlit as st
 from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 def create_effective_nod_analysis(story, df, region, current_date, styles):
-    """Creates effective NOD analysis section for the report."""
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=2)
     metric_style = ParagraphStyle('MetricStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, spaceAfter=2)
-    
-    # Calculate current and last month effective NOD
     current_month = current_date.month
     current_year = current_date.year
     last_month = current_month - 1 if current_month > 1 else 12
     last_month_year = current_year if current_month > 1 else current_year - 1
-    
     current_month_effective = calculate_effective_nod(df, region, current_month, current_year)
     last_month_effective = calculate_effective_nod(df, region, last_month, last_month_year)
-    
     story.append(Paragraph("Effective NOD Analysis:-", month_style))
-    
-    # Current Month Analysis
     if current_month_effective:
-        story.append(Paragraph(f"Current Month Effective NOD (Estimated): ₹{current_month_effective['effective_nod']:,.2f}", metric_style))
+        story.append(Paragraph(f"Current Month Effective NOD (Estimated): Rs.{current_month_effective['effective_nod']:,.2f}", metric_style))
         story.append(Paragraph("Breakdown:", normal_style))
-        story.append(Paragraph(f"• First 10 days (20%): ₹{current_month_effective['first_period_nod']:,.2f} → Contribution: ₹{current_month_effective['first_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Middle 10 days (30%): ₹{current_month_effective['middle_period_nod']:,.2f} → Contribution: ₹{current_month_effective['middle_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Last 10 days (50%): ₹{current_month_effective['last_period_nod']:,.2f} → Contribution: ₹{current_month_effective['last_period_contribution']:,.2f}", normal_style))
-    
-    # Last Month Analysis
+        story.append(Paragraph(f"• First 10 days (20%): Rs.{current_month_effective['first_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['first_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Middle 10 days (30%): Rs.{current_month_effective['middle_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['middle_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Last 10 days (50%): Rs.{current_month_effective['last_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['last_period_contribution']:,.2f}", normal_style))
     if last_month_effective:
         story.append(Spacer(1, 6))
-        story.append(Paragraph(f"Last Month Effective NOD: ₹{last_month_effective['effective_nod']:,.2f}", metric_style))
+        story.append(Paragraph(f"Last Month Effective NOD: Rs.{last_month_effective['effective_nod']:,.2f}", metric_style))
         story.append(Paragraph("Breakdown:", normal_style))
-        story.append(Paragraph(f"• First 10 days (20%): ₹{last_month_effective['first_period_nod']:,.2f} → Contribution: ₹{last_month_effective['first_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Middle 10 days (30%): ₹{last_month_effective['middle_period_nod']:,.2f} → Contribution: ₹{last_month_effective['middle_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Last 10 days (50%): ₹{last_month_effective['last_period_nod']:,.2f} → Contribution: ₹{last_month_effective['last_period_contribution']:,.2f}", normal_style))
-    
-    # Add composition graph if data is available
+        story.append(Paragraph(f"• First 10 days (20%): Rs.{last_month_effective['first_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['first_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Middle 10 days (30%): Rs.{last_month_effective['middle_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['middle_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Last 10 days (50%): Rs.{last_month_effective['last_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['last_period_contribution']:,.2f}", normal_style))
     if current_month_effective or last_month_effective:
         story.append(Spacer(1, 6))
         story.append(Paragraph("Effective NOD Composition:", normal_style))
-        
-        # Create the graph
         data = []
         if current_month_effective:
-            data.append(['Current Month', 
-                        current_month_effective['first_period_contribution'],
-                        current_month_effective['middle_period_contribution'],
-                        current_month_effective['last_period_contribution']])
+            data.append(['Current Month',current_month_effective['first_period_contribution'],current_month_effective['middle_period_contribution'],current_month_effective['last_period_contribution']])
         if last_month_effective:
-            data.append(['Last Month',
-                        last_month_effective['first_period_contribution'],
-                        last_month_effective['middle_period_contribution'],
-                        last_month_effective['last_period_contribution']])
-            
-        # Create table for visualization
-        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \
-                     [[row[0]] + [f"₹{val:,.0f}" for val in row[1:]] for row in data]
-        
+            data.append(['Last Month',last_month_effective['first_period_contribution'],last_month_effective['middle_period_contribution'],last_month_effective['last_period_contribution']])
+        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \[[row[0]] + [f"Rs.{val:,.0f}" for val in row[1:]] for row in data]
         t = Table(table_data)
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ]))
+        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 10),('BOTTOMPADDING', (0, 0), (-1, 0), 12),('GRID', (0, 0), (-1, -1), 1, colors.black),('FONTSIZE', (0, 1), (-1, -1), 9),]))
         story.append(t)
-    
     story.append(Spacer(1, 12))
 def calculate_effective_nod(df, region, month, year):
     df['Date'] = pd.to_datetime(df['Date'])
