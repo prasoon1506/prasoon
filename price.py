@@ -27,73 +27,25 @@ from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 def create_effective_nod_analysis(story, df, region, current_date, styles):
     normal_style = styles['Normal']
-    month_style = ParagraphStyle('MonthStyle', 
-                                parent=styles['Heading3'], 
-                                textColor=colors.green, 
-                                spaceAfter=2)
-    metric_style = ParagraphStyle('MetricStyle', 
-                                 parent=styles['Normal'], 
-                                 fontSize=12, 
-                                 textColor=colors.brown, 
-                                 spaceAfter=2)
-    
+    month_style = ParagraphStyle('MonthStyle',parent=styles['Heading3'],textColor=colors.green,spaceAfter=2)
+    metric_style = ParagraphStyle('MetricStyle',parent=styles['Normal'],fontSize=12,textColor=colors.brown,spaceAfter=2)
     current_month = current_date.month
     current_year = current_date.year
     last_month = current_month - 1 if current_month > 1 else 12
     last_month_year = current_year if current_month > 1 else current_year - 1
-    
     current_month_effective = calculate_effective_nod(df, region, current_month, current_year)
     last_month_effective = calculate_effective_nod(df, region, last_month, last_month_year)
-
     story.append(Paragraph("Effective NOD Analysis:-", month_style))
-    
-    # Create data for the table
-    table_data = [
-        ['Period', 'First 10 days (20%)', 'Middle 10 days (30%)', 'Last 10 days (50%)', 'Total Effective NOD']
-    ]
-    
+    table_data = [['Period', 'First 10 days (20%)', 'Middle 10 days (30%)', 'Last 10 days (50%)', 'Total Effective NOD']]
     if current_month_effective:
-        current_row = [
-            'Current Month',
-            f"Rs.{current_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['first_period_contribution']:,.0f})",
-            f"Rs.{current_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['middle_period_contribution']:,.0f})",
-            f"Rs.{current_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['last_period_contribution']:,.0f})",
-            f"Rs.{current_month_effective['effective_nod']:,.2f}"
-        ]
+        current_row = ['Current Month',f"Rs.{current_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['first_period_contribution']:,.0f})",f"Rs.{current_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['middle_period_contribution']:,.0f})",f"Rs.{current_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['last_period_contribution']:,.0f})",f"Rs.{current_month_effective['effective_nod']:,.2f}"]
         table_data.append(current_row)
-    
     if last_month_effective:
-        last_row = [
-            'Last Month',
-            f"Rs.{last_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['first_period_contribution']:,.0f})",
-            f"Rs.{last_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['middle_period_contribution']:,.0f})",
-            f"Rs.{last_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['last_period_contribution']:,.0f})",
-            f"Rs.{last_month_effective['effective_nod']:,.2f}"
-        ]
+        last_row = ['Last Month',f"Rs.{last_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['first_period_contribution']:,.0f})",f"Rs.{last_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['middle_period_contribution']:,.0f})",f"Rs.{last_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['last_period_contribution']:,.0f})",f"Rs.{last_month_effective['effective_nod']:,.2f}"]
         table_data.append(last_row)
-    
     if current_month_effective or last_month_effective:
-        # Create and style the table
         t = Table(table_data, colWidths=[80, 110, 110, 110, 100])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            # Data rows styling
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            # Alternate row colors
-            ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
-            # Vertical text wrapping
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ]))
+        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 9),('FONTSIZE', (0, 1), (-1, -1), 8),('GRID', (0, 0), (-1, -1), 1, colors.black),('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),('LEFTPADDING', (0, 0), (-1, -1), 3),('RIGHTPADDING', (0, 0), (-1, -1), 3),('TOPPADDING', (0, 0), (-1, -1), 3),('BOTTOMPADDING', (0, 0), (-1, -1), 3),]))
         story.append(t)
         story.append(Spacer(1, 6))
 def calculate_effective_nod(df, region, month, year):
