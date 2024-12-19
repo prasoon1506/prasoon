@@ -799,14 +799,14 @@ def main():
                 with col2:
                     year_input = st.number_input("Select Year", min_value=2000, max_value=2030, value=2024)
                 start_date = pd.to_datetime(f'01-{month_input[:3].lower()} {year_input}', format='%d-%b %Y')
-            download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
-            format_map = {'Excel (.xlsx)': 'xlsx', 'PDF (.pdf)': 'pdf'}
-            selected_format = format_map[download_format]
-            if st.button("Download Processed File"):
-                try:
+                download_format = st.selectbox("Select Download Format", ['Excel (.xlsx)', 'PDF (.pdf)'])
+                format_map = {'Excel (.xlsx)': 'xlsx', 'PDF (.pdf)': 'pdf'}
+                selected_format = format_map[download_format]
+                if st.button("Download Processed File"):
+                 try:
                     output = save_processed_dataframe(df, start_date, selected_format)
                     st.download_button(label=f"Click to Download {download_format}",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
-                except Exception as e:
+                 except Exception as e:
                     st.error(f"Error during download: {e}")
             if download_options == "Regional Price Trend Report":
                 output = save_regional_price_trend_report(df)
