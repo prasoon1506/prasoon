@@ -384,6 +384,7 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
             create_effective_nod_analysis(region_story, df, region, current_date, styles)
+            create_effective_invoice_analysis(region_story, df, region, current_date, styles)
             brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
