@@ -25,117 +25,126 @@ from reportlab.lib import colors
 import streamlit as st
 from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
+def create_effective_nod_analysis(story, df, region, current_date, styles):
+    """Creates effective NOD analysis section for the report."""
+    normal_style = styles['Normal']
+    month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=2)
+    metric_style = ParagraphStyle('MetricStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, spaceAfter=2)
+    
+    # Calculate current and last month effective NOD
+    current_month = current_date.month
+    current_year = current_date.year
+    last_month = current_month - 1 if current_month > 1 else 12
+    last_month_year = current_year if current_month > 1 else current_year - 1
+    
+    current_month_effective = calculate_effective_nod(df, region, current_month, current_year)
+    last_month_effective = calculate_effective_nod(df, region, last_month, last_month_year)
+    
+    story.append(Paragraph("Effective NOD Analysis:-", month_style))
+    
+    # Current Month Analysis
+    if current_month_effective:
+        story.append(Paragraph(f"Current Month Effective NOD (Estimated): ₹{current_month_effective['effective_nod']:,.2f}", metric_style))
+        story.append(Paragraph("Breakdown:", normal_style))
+        story.append(Paragraph(f"• First 10 days (20%): ₹{current_month_effective['first_period_nod']:,.2f} → Contribution: ₹{current_month_effective['first_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Middle 10 days (30%): ₹{current_month_effective['middle_period_nod']:,.2f} → Contribution: ₹{current_month_effective['middle_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Last 10 days (50%): ₹{current_month_effective['last_period_nod']:,.2f} → Contribution: ₹{current_month_effective['last_period_contribution']:,.2f}", normal_style))
+    
+    # Last Month Analysis
+    if last_month_effective:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(f"Last Month Effective NOD: ₹{last_month_effective['effective_nod']:,.2f}", metric_style))
+        story.append(Paragraph("Breakdown:", normal_style))
+        story.append(Paragraph(f"• First 10 days (20%): ₹{last_month_effective['first_period_nod']:,.2f} → Contribution: ₹{last_month_effective['first_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Middle 10 days (30%): ₹{last_month_effective['middle_period_nod']:,.2f} → Contribution: ₹{last_month_effective['middle_period_contribution']:,.2f}", normal_style))
+        story.append(Paragraph(f"• Last 10 days (50%): ₹{last_month_effective['last_period_nod']:,.2f} → Contribution: ₹{last_month_effective['last_period_contribution']:,.2f}", normal_style))
+    
+    # Add composition graph if data is available
+    if current_month_effective or last_month_effective:
+        story.append(Spacer(1, 6))
+        story.append(Paragraph("Effective NOD Composition:", normal_style))
+        
+        # Create the graph
+        data = []
+        if current_month_effective:
+            data.append(['Current Month', 
+                        current_month_effective['first_period_contribution'],
+                        current_month_effective['middle_period_contribution'],
+                        current_month_effective['last_period_contribution']])
+        if last_month_effective:
+            data.append(['Last Month',
+                        last_month_effective['first_period_contribution'],
+                        last_month_effective['middle_period_contribution'],
+                        last_month_effective['last_period_contribution']])
+            
+        # Create table for visualization
+        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \
+                     [[row[0]] + [f"₹{val:,.0f}" for val in row[1:]] for row in data]
+        
+        t = Table(table_data)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ]))
+        story.append(t)
+    
+    story.append(Spacer(1, 12))
 def calculate_effective_nod(df, region, month, year):
-    """
-    Calculate effective NOD for a given month with weighted averages:
-    - First 10 days: 20% weightage
-    - Middle 10 days: 30% weightage
-    - Last 10 days: 50% weightage
-    
-    If date of 1st is not available, uses the last available NOD from previous month.
-    If NOD changes within a period, weightage is distributed equally among days.
-    """
-    # Convert dates if they aren't already datetime
     df['Date'] = pd.to_datetime(df['Date'])
-    
-    # Get the start of the month we're calculating for
     month_start = pd.Timestamp(year=year, month=month, day=1)
-    
-    # Get the last available NOD from previous months
-    prev_month_data = df[
-        (df['Region(District)'] == region) & 
-        (df['Date'] < month_start)
-    ].sort_values('Date', ascending=False)
-    
+    prev_month_data = df[(df['Region(District)'] == region) & (df['Date'] < month_start)].sort_values('Date', ascending=False)
     last_available_nod = None
     if not prev_month_data.empty:
         last_available_nod = prev_month_data.iloc[0]['Net']
-    
-    # Filter data for the specified month and region
-    month_data = df[
-        (df['Region(District)'] == region) & 
-        (df['Date'].dt.month == month) & 
-        (df['Date'].dt.year == year)
-    ].copy()
-    
-    # If we have no data for this month but have a previous NOD, create a virtual entry
+    month_data = df[(df['Region(District)'] == region) & (df['Date'].dt.month == month) & (df['Date'].dt.year == year)].copy()
     if month_data.empty and last_available_nod is not None:
-        month_data = pd.DataFrame([{
-            'Date': month_start,
-            'Net': last_available_nod,
-            'Region(District)': region
-        }])
+        month_data = pd.DataFrame([{'Date': month_start,'Net': last_available_nod,'Region(District)': region}])
     elif month_data.empty and last_available_nod is None:
         return None
-    
-    # Sort by date
     month_data = month_data.sort_values('Date')
-    
-    # Get the number of days in the month
     last_day = pd.Timestamp(year, month, 1) + pd.offsets.MonthEnd(1)
     days_in_month = last_day.day
-    
-    # Define periods
     first_period = pd.date_range(start=f"{year}-{month:02d}-01", end=f"{year}-{month:02d}-10")
     middle_period = pd.date_range(start=f"{year}-{month:02d}-11", end=f"{year}-{month:02d}-20")
     last_period = pd.date_range(start=f"{year}-{month:02d}-21", end=f"{year}-{month:02d}-{days_in_month}")
-    
     def calculate_period_nod(period_dates, data, weight):
         # If we have no data points in or before this period but have last_available_nod
         if data[data['Date'] <= period_dates[-1]].empty and last_available_nod is not None:
             return last_available_nod * weight
-            
         period_data = data[data['Date'].dt.date.isin(period_dates.date)]
         if period_data.empty:
-            # Use the closest previous value
             prev_data = data[data['Date'] < period_dates[0]]
             if prev_data.empty and last_available_nod is not None:
                 return last_available_nod * weight
             elif not prev_data.empty:
                 return prev_data.iloc[-1]['Net'] * weight
             return 0
-        
-        # Calculate days for each unique NOD value in the period
         nod_values = []
         current_period_start = period_dates[0]
-        
-        # If we have a value from previous period, use it until first change
         if period_data.iloc[0]['Date'].date() > period_dates[0].date():
             prev_data = data[data['Date'] < period_dates[0]]
             initial_nod = last_available_nod if prev_data.empty else prev_data.iloc[-1]['Net']
             days_until_first_change = (period_data.iloc[0]['Date'].date() - period_dates[0].date()).days
             if days_until_first_change > 0:
                 nod_values.append((initial_nod, days_until_first_change))
-        
-        # Add all changes within the period
         for idx, row in period_data.iterrows():
             next_change = period_data[period_data['Date'] > row['Date']].iloc[0]['Date'] if not period_data[period_data['Date'] > row['Date']].empty else period_dates[-1]
             days_effective = (min(next_change, period_dates[-1]).date() - row['Date'].date()).days 
             nod_values.append((row['Net'], days_effective))
-        
-        # Calculate weighted average for the period
         total_days = sum(days for _, days in nod_values)
         weighted_nod = sum(nod * (days / total_days) for nod, days in nod_values)
         return weighted_nod * weight
-    
-    # Calculate weighted NOD for each period
     first_period_nod = calculate_period_nod(first_period, month_data, 0.20)
     middle_period_nod = calculate_period_nod(middle_period, month_data, 0.30)
     last_period_nod = calculate_period_nod(last_period, month_data, 0.50)
-    
-    # Calculate effective NOD
     effective_nod = first_period_nod + middle_period_nod + last_period_nod
-    
-    return {
-        'effective_nod': round(effective_nod, 2),
-        'first_period_nod': round(first_period_nod / 0.20, 2) if first_period_nod != 0 else 0,
-        'middle_period_nod': round(middle_period_nod / 0.30, 2) if middle_period_nod != 0 else 0,
-        'last_period_nod': round(last_period_nod / 0.50, 2) if last_period_nod != 0 else 0,
-        'first_period_contribution': round(first_period_nod, 2),
-        'middle_period_contribution': round(middle_period_nod, 2),
-        'last_period_contribution': round(last_period_nod, 2),
-        'last_available_nod': last_available_nod
-    }
+    return {'effective_nod': round(effective_nod, 2),'first_period_nod': round(first_period_nod / 0.20, 2) if first_period_nod != 0 else 0,'middle_period_nod': round(middle_period_nod / 0.30, 2) if middle_period_nod != 0 else 0,'last_period_nod': round(last_period_nod / 0.50, 2) if last_period_nod != 0 else 0,'first_period_contribution': round(first_period_nod, 2),'middle_period_contribution': round(middle_period_nod, 2),'last_period_contribution': round(last_period_nod, 2),'last_available_nod': last_available_nod}
 def get_competitive_brands_wsp_data():
     include_competitive_brands = st.checkbox("Include Competitive Brands WSP Data")
     competitive_brands_wsp = {}
@@ -346,20 +355,30 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             region_df = df[df['Region(District)'] == region].copy()
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
+            
+            # Add existing metric progressions
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
+            
+            # Add effective NOD analysis
+            create_effective_nod_analysis(region_story, df, region, current_date, styles)
+            
+            # Add WSP progressions
             brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
             is_last_brand = (brand_count == 1)
+            
             create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+            
             if competitive_brands_wsp:
                 brand_names = list(competitive_brands_wsp.keys())
                 for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
                     is_last_brand = (i == len(brand_names) - 1)
                     create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
+            
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         doc.build(story)
@@ -408,137 +427,52 @@ def convert_dataframe_to_pdf(df, filename):
     buffer.seek(0)
     return buffer
 def save_processed_dataframe(df, start_date=None, download_format='xlsx'):
-    # Predefined order of regions
-    region_order = [
-        'GJ (Ahmedabad)', 'GJ (Surat)', 
-        'RJ(Jaipur)', 'RJ(Udaipur)', 
-        'HY (Gurgaon)', 
-        'PB (Bhatinda)', 
-        'Delhi', 
-        'CG (Raipur)', 
-        'ORR (Khorda)', 'ORR (Sambalpur)', 
-        'UP (Gaziabad)', 
-        'M.P.(East)[Balaghat]', 
-        'M.P.(West)[Indore]', 
-        'M.H.(East)[Nagpur Urban]'
-    ]
-
+    region_order = ['GJ (Ahmedabad)', 'GJ (Surat)', 'RJ(Jaipur)', 'RJ(Udaipur)', 'HY (Gurgaon)', 'PB (Bhatinda)','Delhi','CG (Raipur)', 'ORR (Khorda)', 'ORR (Sambalpur)', 'UP (Gaziabad)', 'M.P.(East)[Balaghat]', 'M.P.(West)[Indore]', 'M.H.(East)[Nagpur Urban]']
     if 'processed_dataframe' in st.session_state:
         df = st.session_state['processed_dataframe']
-    
     df_to_save = df.copy()
-    
-    # Create a custom sorting key based on the predefined order
     df_to_save['region_order'] = df_to_save['Region(District)'].map({region: idx for idx, region in enumerate(region_order)})
     df_to_save = df_to_save.sort_values(['region_order', 'Date'])
-    
-    # Drop the temporary sorting column
     df_to_save = df_to_save.drop(columns=['region_order'])
-    
     if 'Date' in df_to_save.columns:
         df_to_save['Date'] = pd.to_datetime(df_to_save['Date'], format='%d-%b %Y')
         if start_date:
             df_to_save = df_to_save[df_to_save['Date'] >= start_date]
             df_to_save['Date'] = df_to_save['Date'].dt.strftime('%d-%b %Y')
-    
     output = io.BytesIO()
-    
     if download_format == 'xlsx':
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df_to_save.to_excel(writer, sheet_name='Sheet1', index=False)
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
-            
-            # Set print titles (repeat first row on every page)
             worksheet.repeat_rows(0)
-            
-            # Additional print settings for better printing
             worksheet.set_page_view()
-            
             dark_blue = '#2C3E50'
             white = '#FFFFFF'
             light_gray = '#F2F2F2'
-            
-            format_header = workbook.add_format({
-                'bold': True, 
-                'font_size': 14,
-                'bg_color': dark_blue,
-                'font_color': white,
-                'align': 'center',
-                'valign': 'vcenter',
-                'border': 1,
-                'border_color': '#000000',
-                'text_wrap': True
-            })
-            format_general = workbook.add_format({
-                'font_size': 12,
-                'valign': 'vcenter',
-                'align': 'center'
-            })
-            format_alternating = workbook.add_format({
-                'font_size': 12,
-                'bg_color': light_gray,
-                'valign': 'vcenter',
-                'align': 'center'
-            })
-            
+            format_header = workbook.add_format({'bold': True, 'font_size': 14,'bg_color': dark_blue,'font_color': white,'align': 'center','valign': 'vcenter','border': 1,'border_color': '#000000','text_wrap': True})
+            format_general = workbook.add_format({'font_size': 12,'valign': 'vcenter','align': 'center'})
+            format_alternating = workbook.add_format({'font_size': 12,'bg_color': light_gray,'valign': 'vcenter','align': 'center'})
             worksheet.set_row(0, 30, format_header)
-            
             for row_num in range(1, len(df_to_save) + 1):
                 if row_num % 2 == 0:
                     worksheet.set_row(row_num, None, format_alternating)
                 else:
                     worksheet.set_row(row_num, None, format_general)
-            
             for col_num, col_name in enumerate(df_to_save.columns):
                 max_len = max(df_to_save[col_name].astype(str).map(len).max(),len(str(col_name)))
                 worksheet.set_column(col_num, col_num, max_len + 2, format_general)
-            
             if 'MoM Change' in df_to_save.columns:
                 mom_change_col_index = df_to_save.columns.get_loc('MoM Change')
-                format_negative = workbook.add_format({
-                    'bg_color': '#FFC7CE',
-                    'font_size': 12,
-                    'align': 'center',
-                    'valign': 'vcenter'
-                })
-                format_zero = workbook.add_format({
-                    'bg_color': '#D9D9D9',
-                    'font_size': 12,
-                    'align': 'center',
-                    'valign': 'vcenter'
-                })
-                format_positive = workbook.add_format({
-                    'bg_color': '#C6EFCE',
-                    'font_size': 12,
-                    'align': 'center',
-                    'valign': 'vcenter'
-                })
-                
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
-                    'type': 'cell', 
-                    'criteria': '<', 
-                    'value': 0, 
-                    'format': format_negative
-                })
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
-                    'type': 'cell',
-                    'criteria': '=',
-                    'value': 0,
-                    'format': format_zero
-                })
-                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {
-                    'type': 'cell',
-                    'criteria': '>',
-                    'value': 0, 
-                    'format': format_positive
-                })
-            
+                format_negative = workbook.add_format({'bg_color': '#FFC7CE','font_size': 12,'align': 'center','valign': 'vcenter'})
+                format_zero = workbook.add_format({'bg_color': '#D9D9D9','font_size': 12,'align': 'center','valign': 'vcenter'})
+                format_positive = workbook.add_format({'bg_color': '#C6EFCE','font_size': 12,'align': 'center','valign': 'vcenter'})
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell', 'criteria': '<', 'value': 0, 'format': format_negative})
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '=','value': 0,'format': format_zero})
+                worksheet.conditional_format(1, mom_change_col_index, len(df_to_save), mom_change_col_index, {'type': 'cell','criteria': '>','value': 0, 'format': format_positive})
             writer.close()
-    
     elif download_format == 'pdf':
         output = convert_dataframe_to_pdf(df_to_save, 'processed_price_tracker.pdf')
-    
     output.seek(0)
     return output
 def parse_date(date_str):
@@ -736,7 +670,6 @@ def main():
                         else:
                             pdf_bytes = pio.to_image(fig, format='pdf')
                             st.download_button(label="Download Graph as PDF",data=pdf_bytes,file_name=f'{selected_region_analysis}_{graph_type}_trend.pdf',mime='application/pdf')
-                # Add this in the Region Analysis section after current month data display
                 st.markdown("#### Effective NOD Analysis")
                 current_month = dt.now().month
                 current_year = dt.now().year
