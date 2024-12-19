@@ -27,42 +27,75 @@ from openpyxl import Workbook
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 def create_effective_nod_analysis(story, df, region, current_date, styles):
     normal_style = styles['Normal']
-    month_style = ParagraphStyle('MonthStyle', parent=styles['Heading3'], textColor=colors.green, spaceAfter=2)
-    metric_style = ParagraphStyle('MetricStyle', parent=styles['Normal'], fontSize=12, textColor=colors.brown, spaceAfter=2)
+    month_style = ParagraphStyle('MonthStyle', 
+                                parent=styles['Heading3'], 
+                                textColor=colors.green, 
+                                spaceAfter=2)
+    metric_style = ParagraphStyle('MetricStyle', 
+                                 parent=styles['Normal'], 
+                                 fontSize=12, 
+                                 textColor=colors.brown, 
+                                 spaceAfter=2)
+    
     current_month = current_date.month
     current_year = current_date.year
     last_month = current_month - 1 if current_month > 1 else 12
     last_month_year = current_year if current_month > 1 else current_year - 1
+    
     current_month_effective = calculate_effective_nod(df, region, current_month, current_year)
     last_month_effective = calculate_effective_nod(df, region, last_month, last_month_year)
+
     story.append(Paragraph("Effective NOD Analysis:-", month_style))
+    
+    # Create data for the table
+    table_data = [
+        ['Period', 'First 10 days (20%)', 'Middle 10 days (30%)', 'Last 10 days (50%)', 'Total Effective NOD']
+    ]
+    
     if current_month_effective:
-        story.append(Paragraph(f"Current Month Effective NOD (Estimated): Rs.{current_month_effective['effective_nod']:,.2f}", metric_style))
-        story.append(Paragraph("Breakdown:", normal_style))
-        story.append(Paragraph(f"• First 10 days (20%): Rs.{current_month_effective['first_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['first_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Middle 10 days (30%): Rs.{current_month_effective['middle_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['middle_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Last 10 days (50%): Rs.{current_month_effective['last_period_nod']:,.2f} → Contribution: Rs.{current_month_effective['last_period_contribution']:,.2f}", normal_style))
+        current_row = [
+            'Current Month',
+            f"Rs.{current_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['first_period_contribution']:,.0f})",
+            f"Rs.{current_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['middle_period_contribution']:,.0f})",
+            f"Rs.{current_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{current_month_effective['last_period_contribution']:,.0f})",
+            f"Rs.{current_month_effective['effective_nod']:,.2f}"
+        ]
+        table_data.append(current_row)
+    
     if last_month_effective:
-        story.append(Spacer(1, 6))
-        story.append(Paragraph(f"Last Month Effective NOD: Rs.{last_month_effective['effective_nod']:,.2f}", metric_style))
-        story.append(Paragraph("Breakdown:", normal_style))
-        story.append(Paragraph(f"• First 10 days (20%): Rs.{last_month_effective['first_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['first_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Middle 10 days (30%): Rs.{last_month_effective['middle_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['middle_period_contribution']:,.2f}", normal_style))
-        story.append(Paragraph(f"• Last 10 days (50%): Rs.{last_month_effective['last_period_nod']:,.2f} → Contribution: Rs.{last_month_effective['last_period_contribution']:,.2f}", normal_style))
+        last_row = [
+            'Last Month',
+            f"Rs.{last_month_effective['first_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['first_period_contribution']:,.0f})",
+            f"Rs.{last_month_effective['middle_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['middle_period_contribution']:,.0f})",
+            f"Rs.{last_month_effective['last_period_nod']:,.0f}\n(Cont: Rs.{last_month_effective['last_period_contribution']:,.0f})",
+            f"Rs.{last_month_effective['effective_nod']:,.2f}"
+        ]
+        table_data.append(last_row)
+    
     if current_month_effective or last_month_effective:
-        story.append(Spacer(1, 6))
-        story.append(Paragraph("Effective NOD Composition:", normal_style))
-        data = []
-        if current_month_effective:
-            data.append(['Current Month',current_month_effective['first_period_contribution'],current_month_effective['middle_period_contribution'],current_month_effective['last_period_contribution']])
-        if last_month_effective:
-            data.append(['Last Month',last_month_effective['first_period_contribution'],last_month_effective['middle_period_contribution'],last_month_effective['last_period_contribution']])
-        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \
-        [[row[0]] + [f"Rs.{val:,.0f}" for val in row[1:]] for row in data]
-        t = Table(table_data)
-        t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 10),('BOTTOMPADDING', (0, 0), (-1, 0), 12),('GRID', (0, 0), (-1, -1), 1, colors.black),('FONTSIZE', (0, 1), (-1, -1), 9),]))
+        # Create and style the table
+        t = Table(table_data, colWidths=[80, 110, 110, 110, 100])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            # Data rows styling
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            # Alternate row colors
+            ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
+            # Vertical text wrapping
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
         story.append(t)
-    story.append(Spacer(1, 12))
+        story.append(Spacer(1, 6))
 def calculate_effective_nod(df, region, month, year):
     df['Date'] = pd.to_datetime(df['Date'])
     month_start = pd.Timestamp(year=year, month=month, day=1)
@@ -82,7 +115,6 @@ def calculate_effective_nod(df, region, month, year):
     middle_period = pd.date_range(start=f"{year}-{month:02d}-11", end=f"{year}-{month:02d}-20")
     last_period = pd.date_range(start=f"{year}-{month:02d}-21", end=f"{year}-{month:02d}-{days_in_month}")
     def calculate_period_nod(period_dates, data, weight):
-        # If we have no data points in or before this period but have last_available_nod
         if data[data['Date'] <= period_dates[-1]].empty and last_available_nod is not None:
             return last_available_nod * weight
         period_data = data[data['Date'].dt.date.isin(period_dates.date)]
@@ -323,30 +355,21 @@ def generate_regional_price_trend_report(df, company_wsp_df=None, competitive_br
             region_df = df[df['Region(District)'] == region].copy()
             region_story.append(Paragraph(f"{region}", region_style))
             region_story.append(Spacer(1, 1))
-            
-            # Add existing metric progressions
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Inv.', 'Invoice Price', styles)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'RD', 'RD', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'STS', 'STS', styles, is_secondary_metric=True)
             create_comprehensive_metric_progression(region_story, region_df, current_date, last_month, 'Net', 'NOD', styles)
-            
-            # Add effective NOD analysis
             create_effective_nod_analysis(region_story, df, region, current_date, styles)
-            
-            # Add WSP progressions
             brand_count = 1 if company_wsp_df is not None and not company_wsp_df.empty else 0
             if competitive_brands_wsp:
                 brand_count += len(competitive_brands_wsp)
             is_last_brand = (brand_count == 1)
-            
             create_wsp_progression(region_story, company_wsp_df, region, styles, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
-            
             if competitive_brands_wsp:
                 brand_names = list(competitive_brands_wsp.keys())
                 for i, (brand, brand_wsp_df) in enumerate(competitive_brands_wsp.items()):
                     is_last_brand = (i == len(brand_names) - 1)
                     create_wsp_progression(region_story, brand_wsp_df, region, styles, brand_name=brand, is_last_brand=is_last_brand, company_wsp_df=company_wsp_df)
-            
             story.append(KeepTogether(region_story))
             story.append(Paragraph("<pagebreak/>", styles['Normal']))
         doc.build(story)
@@ -680,16 +703,7 @@ def main():
                 remarks_df = remarks_df.sort_values('Date', ascending=False)
                 if not remarks_df.empty:
                         for _, row in remarks_df.iterrows():
-                            st.markdown(f"""
-                            <div style="background-color:#f0f2f6; 
-                                        border-left: 5px solid #4a4a4a; 
-                                        padding: 10px; 
-                                        margin-bottom: 10px; 
-                                        border-radius: 5px;">
-                                <strong>{row['Date'].strftime('%d-%b %Y')}</strong>: 
-                                {row['Remarks']}
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"""<div style="background-color:#f0f2f6;border-left: 5px solid #4a4a4a;padding: 10px;margin-bottom: 10px;border-radius: 5px;"><strong>{row['Date'].strftime('%d-%b %Y')}</strong>: {row['Remarks']}</div>""", unsafe_allow_html=True)
                 else:
                         st.info("No remarks found for this region.")
             st.markdown("## 📥 Download Options")
