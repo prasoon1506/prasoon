@@ -744,7 +744,7 @@ def main():
                 last_month_effective = calculate_effective_nod(df, selected_region_analysis, current_month - 1 if current_month > 1 else 12,current_year if current_month > 1 else current_year - 1)
                 col_eff_1, col_eff_2 = st.columns(2)
                 with col_eff_1:
-                     st.markdown("##### Current Month Effective NOD")
+                     st.markdown("##### Current Month Effective NOD(Estimated)")
                      if current_month_effective:
                        st.metric("Effective NOD", f"₹{current_month_effective['effective_nod']:,.2f}")
                        with st.expander("View Breakdown"):
