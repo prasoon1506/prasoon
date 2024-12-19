@@ -110,7 +110,7 @@ def calculate_effective_nod(df, region, month, year):
         # Add all changes within the period
         for idx, row in period_data.iterrows():
             next_change = period_data[period_data['Date'] > row['Date']].iloc[0]['Date'] if not period_data[period_data['Date'] > row['Date']].empty else period_dates[-1]
-            days_effective = (min(next_change, period_dates[-1]).date() - row['Date'].date()).days + 1
+            days_effective = (min(next_change, period_dates[-1]).date() - row['Date'].date()).days 
             nod_values.append((row['Net'], days_effective))
         
         # Calculate weighted average for the period
