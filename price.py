@@ -792,6 +792,13 @@ def main():
             download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month", "Regional Price Trend Report"], horizontal=True)
             
             start_date = None
+            if download_options =="Entire Dataframe":
+                if st.button("Download Processed File"):
+                 try:
+                    output = save_processed_dataframe(df, start_date, selected_format)
+                    st.download_button(label=f"Click to Download {download_format}",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
+                 except Exception as e:
+                    st.error(f"Error during download: {e}")
             if download_options == "Specific Month":
                 col1, col2 = st.columns(2)
                 with col1:
