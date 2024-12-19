@@ -57,7 +57,8 @@ def create_effective_nod_analysis(story, df, region, current_date, styles):
             data.append(['Current Month',current_month_effective['first_period_contribution'],current_month_effective['middle_period_contribution'],current_month_effective['last_period_contribution']])
         if last_month_effective:
             data.append(['Last Month',last_month_effective['first_period_contribution'],last_month_effective['middle_period_contribution'],last_month_effective['last_period_contribution']])
-        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \[[row[0]] + [f"Rs.{val:,.0f}" for val in row[1:]] for row in data]
+        table_data = [['Period', 'First 10 Days', 'Middle 10 Days', 'Last 10 Days']] + \
+        [[row[0]] + [f"Rs.{val:,.0f}" for val in row[1:]] for row in data]
         t = Table(table_data)
         t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 10),('BOTTOMPADDING', (0, 0), (-1, 0), 12),('GRID', (0, 0), (-1, -1), 1, colors.black),('FONTSIZE', (0, 1), (-1, -1), 9),]))
         story.append(t)
