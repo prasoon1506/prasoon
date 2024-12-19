@@ -72,8 +72,7 @@ def calculate_effective_invoice(df, region, month, year):
     middle_period_invoice = calculate_period_invoice(middle_period, month_data, 0.30)
     last_period_invoice = calculate_period_invoice(last_period, month_data, 0.50)
     effective_invoice = first_period_invoice + middle_period_invoice + last_period_invoice
-    return {'effective_invoice': round(effective_invoice, 2),'first_period_invoice': round(first_period_invoice / 0.20, 2) if first_period_invoice != 0 else 0,'middle_period_invoice': round(middle_period_invoice / 0.30, 2) if middle_period_invoice != 0 else 0,'last_period_invoice': round(last_period_invoice / 0.50, 2) if last_period_invoice != 0 else 0,
-        'first_period_contribution': round(first_period_invoice, 2),'middle_period_contribution': round(middle_period_invoice, 2),'last_period_contribution': round(last_period_invoice, 2),'last_available_invoice': last_available_invoice}
+    return {'effective_invoice': round(effective_invoice, 2),'first_period_invoice': round(first_period_invoice / 0.20, 2) if first_period_invoice != 0 else 0,'middle_period_invoice': round(middle_period_invoice / 0.30, 2) if middle_period_invoice != 0 else 0,'last_period_invoice': round(last_period_invoice / 0.50, 2) if last_period_invoice != 0 else 0,'first_period_contribution': round(first_period_invoice, 2),'middle_period_contribution': round(middle_period_invoice, 2),'last_period_contribution': round(last_period_invoice, 2),'last_available_invoice': last_available_invoice}
 def create_effective_invoice_analysis(story, df, region, current_date, styles):
     normal_style = styles['Normal']
     month_style = ParagraphStyle('MonthStyle',parent=styles['Heading3'],textColor=colors.green,spaceAfter=2)
@@ -790,7 +789,6 @@ def main():
                         st.info("No remarks found for this region.")
             st.markdown("## 📥 Download Options")
             download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month", "Regional Price Trend Report"], horizontal=True)
-            
             start_date = None
             if download_options =="Entire Dataframe":
                 if st.button("Download Processed File"):
