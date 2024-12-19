@@ -790,9 +790,7 @@ def main():
                         st.info("No remarks found for this region.")
             st.markdown("## 📥 Download Options")
             download_options = st.radio("Download File From:", ["Entire Dataframe", "Specific Month", "Regional Price Trend Report"], horizontal=True)
-            if download_options == "Regional Price Trend Report":
-                output = save_regional_price_trend_report(df)
-                st.download_button(label="Download Regional Price Trend Report (PDF)",data=output,file_name="regional_price_trend_report.pdf",mime="application/pdf")
+            
             start_date = None
             if download_options == "Specific Month":
                 col1, col2 = st.columns(2)
@@ -810,6 +808,9 @@ def main():
                     st.download_button(label=f"Click to Download {download_format}",data=output,file_name=f'processed_price_tracker.{selected_format}',mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' if selected_format == 'xlsx' else 'application/pdf')
                 except Exception as e:
                     st.error(f"Error during download: {e}")
+            if download_options == "Regional Price Trend Report":
+                output = save_regional_price_trend_report(df)
+                st.download_button(label="Download Regional Price Trend Report (PDF)",data=output,file_name="regional_price_trend_report.pdf",mime="application/pdf")
         except Exception as e:
             st.error(f"An error occurred: {e}")
             st.exception(e)
