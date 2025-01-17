@@ -12,7 +12,7 @@ DISTRICT_COORDS = {
     'Udaipur': [24.5854, 73.7125],
     'Gurugram': [28.4595, 77.0266],
     'Bathinda': [30.2110, 74.9455],
-    'Delhi': [28.7041, 77.1025],
+    'Delhi East': [28.7041, 77.1025],  # Changed from 'Delhi' to 'Delhi East'
     'Raipur': [21.2514, 81.6296],
     'Khorda': [20.1734, 85.6745],
     'Sambalpur': [21.4669, 83.9756],
@@ -33,7 +33,7 @@ def process_district_data(df):
         'Z2013_Udaipur': 'RJ(Udaipur)',
         'Z0703_Gurugram': 'HY(Gurgaon)',
         'Z1909_Bathinda': 'PB(Bhatinda)',
-        'Z3001_East': 'Delhi',
+        'Z3001_East': 'Delhi East',  # Changed to match with DISTRICT_COORDS
         'Z3302_Raipur': 'CG(Raipur)',
         'Z1810_Khorda': 'ORR(Khorda)',
         'Z1804_Sambalpur': 'ORR(Sambalpur)',
@@ -61,37 +61,76 @@ def convert_to_date(row):
 
 def create_price_table(df, district_name):
     """Create price table for selected district"""
-    # Filter for selected district
-    district_data = df[df['District: Name'].str.contains(district_name)]
-    
-    # Convert dates
-    district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
-    district_data = district_data.dropna(subset=['Full_Date'])
-    
-    # Check if district is in target districts
-    target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
-    is_target = any(d in district_name for d in target_districts)
-    
-    # Filter brands
-    if is_target:
-        brands = ['JK LAKSHMI PRO+ CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
-    else:
-        brands = ['JK LAKSHMI CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
-    
-    district_data = district_data[
-        district_data['Brand: Name'].str.upper().isin(brands)
-    ]
-    
-    # Pivot table
-    price_table = district_data.pivot_table(
-        index='Full_Date',
-        columns='Brand: Name',
-        values='Whole Sale Price',
-        aggfunc=lambda x: ', '.join(map(str, set(x)))
-    ).reset_index()
-    
-    price_table['Full_Date'] = price_table['Full_Date'].dt.strftime('%d-%b-%Y')
-    return price_table
+    try:
+        # Get the corresponding district code
+        district_code = None
+        for code, mapped in {
+            'Z0605_Ahmadabad': 'Ahmadabad',
+            'Z0616_Surat': 'Surat',
+            'Z2020_Jaipur': 'Jaipur',
+            'Z2013_Udaipur': 'Udaipur',
+            'Z0703_Gurugram': 'Gurugram',
+            'Z1909_Bathinda': 'Bathinda',
+            'Z3001_East': 'Delhi East',
+            'Z3302_Raipur': 'Raipur',
+            'Z1810_Khorda': 'Khorda',
+            'Z1804_Sambalpur': 'Sambalpur',
+            'Z2405_Ghaziabad': 'Ghaziabad',
+            'Z3506_Haridwar': 'Haridwar',
+            'Z3505_Dehradun': 'Dehradun',
+            'Z1230_Balaghat': 'Balaghat',
+            'Z1226_Indore': 'Indore',
+            'Z1329_Nagpur': 'Nagpur'
+        }.items():
+            if mapped == district_name:
+                district_code = code
+                break
+
+        if district_code is None:
+            return pd.DataFrame()
+
+        # Filter for selected district
+        district_data = df[df['District: Name'] == district_code]
+        
+        if len(district_data) == 0:
+            return pd.DataFrame()
+
+        # Convert dates
+        district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
+        district_data = district_data.dropna(subset=['Full_Date'])
+        
+        # Check if district is in target districts
+        target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
+        is_target = any(d in district_name for d in target_districts)
+        
+        # Filter brands
+        if is_target:
+            brands = ['JK LAKSHMI PRO+ CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
+        else:
+            brands = ['JK LAKSHMI CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
+        
+        district_data = district_data[
+            district_data['Brand: Name'].str.upper().isin(brands)
+        ]
+        
+        if len(district_data) == 0:
+            return pd.DataFrame()
+
+        # Pivot table
+        price_table = district_data.pivot_table(
+            index='Full_Date',
+            columns='Brand: Name',
+            values='Whole Sale Price',
+            aggfunc=lambda x: ', '.join(map(str, set(x)))
+        ).reset_index()
+        
+        if len(price_table) > 0:
+            price_table['Full_Date'] = price_table['Full_Date'].dt.strftime('%d-%b-%Y')
+        
+        return price_table
+    except Exception as e:
+        st.error(f"Error processing data for {district_name}: {str(e)}")
+        return pd.DataFrame()
 
 def find_nearest_district(lat, lon):
     """Find the nearest district to given coordinates"""
@@ -100,12 +139,12 @@ def find_nearest_district(lat, lon):
     
     for district, coords in DISTRICT_COORDS.items():
         dist = ((coords[0] - lat) ** 2 + (coords[1] - lon) ** 2) ** 0.5
-        if dist < min_dist:
-            min_dist = dist
-            nearest_district = district
+        if dist < 0.5:  # Reduced threshold for more precise selection
+            if dist < min_dist:
+                min_dist = dist
+                nearest_district = district
     
-    # Only return if we're reasonably close (threshold of 1 degree)
-    return nearest_district if min_dist < 1 else None
+    return nearest_district
 
 def main():
     st.title("Cement Price Analysis Dashboard")
@@ -113,6 +152,8 @@ def main():
     # Initialize session state
     if 'processed_df' not in st.session_state:
         st.session_state.processed_df = None
+    if 'selected_district' not in st.session_state:
+        st.session_state.selected_district = None
     
     # File upload
     uploaded_file = st.file_uploader("Upload SFDC CSV file", type=['csv'])
@@ -133,7 +174,7 @@ def main():
         )
         
         # Create map
-        st.subheader("District Locations (Click on a point to view details)")
+        st.subheader("District Locations (Click on a point to select)")
         
         fig = px.scatter_mapbox(
             map_data,
@@ -154,30 +195,36 @@ def main():
             )
         )
         
-        # Add click event callback
+        # Add click event handler
         selected_point = st.plotly_chart(
             fig,
             use_container_width=True,
             config={'displayModeBar': False}
         )
         
-        # Create columns for layout
-        col1, col2 = st.columns([1, 2])
+        # Handle click events
+        if st.session_state.selected_district is None:
+            st.session_state.selected_district = list(DISTRICT_COORDS.keys())[0]
+            
+        # District selection dropdown (synced with map)
+        selected_district = st.selectbox(
+            "Select a district to view prices",
+            options=list(DISTRICT_COORDS.keys()),
+            index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district)
+        )
         
-        with col1:
-            # District selection dropdown
-            selected_district = st.selectbox(
-                "Select a district to view prices",
-                options=list(DISTRICT_COORDS.keys())
-            )
+        # Update selected district
+        st.session_state.selected_district = selected_district
         
-        # Handle map clicks using Streamlit events
+        # Display price table
         if selected_district:
-            with col2:
-                st.subheader(f"Price Data for {selected_district}")
-                if st.session_state.processed_df is not None:
-                    price_table = create_price_table(st.session_state.processed_df, selected_district)
-                    st.dataframe(price_table)
+            st.subheader(f"Price Data for {selected_district}")
+            price_table = create_price_table(st.session_state.processed_df, selected_district)
+            
+            if len(price_table) > 0:
+                st.dataframe(price_table)
+            else:
+                st.warning(f"No data available for {selected_district}")
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide")
