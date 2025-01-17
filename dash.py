@@ -82,7 +82,7 @@ def convert_to_date(row):
     try:
         day = int(float(row['Date']))
         month = str(row['Month']).strip()
-        year = 2024 if month == 'December' else 2025
+        year = 2024 if month.lower() == 'december' else 2025
         return pd.to_datetime(f"{year}-{month}-{day}", format="%Y-%B-%d")
     except:
         return None
@@ -118,14 +118,15 @@ def create_price_table(df, district_name, show_all_prices=False):
             return pd.DataFrame()
 
         # Filter for selected district
-        district_data = df[df['District: Name'] == district_code]
+        district_data = df[df['District: Name'] == district_code].copy()
         
         if len(district_data) == 0:
             return pd.DataFrame()
 
-        # Convert dates
+        # Convert dates and sort
         district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
         district_data = district_data.dropna(subset=['Full_Date'])
+        district_data = district_data.sort_values('Full_Date', ascending=False)
         
         # Check if district is in target districts
         target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
@@ -155,7 +156,7 @@ def create_price_table(df, district_name, show_all_prices=False):
                 index='Full_Date',
                 columns='Brand: Name',
                 values='Whole Sale Price',
-                aggfunc=lambda x: ', '.join(map(str, set(x)))
+                aggfunc=lambda x: ', '.join(map(str, sorted(set(x))))
             ).reset_index()
         else:
             # Apply the special price selection logic
@@ -190,30 +191,36 @@ def create_price_table(df, district_name, show_all_prices=False):
                 result_data.append(row_data)
             
             price_table = pd.DataFrame(result_data)
-        
+
         if len(price_table) > 0:
-            price_table['Full_Date'] = pd.to_datetime(price_table['Full_Date']).dt.strftime('%d-%b-%Y')
-        
+            # Ensure proper date sorting
+            price_table['Full_Date'] = pd.to_datetime(price_table['Full_Date'])
+            price_table = price_table.sort_values('Full_Date', ascending=False)
+            price_table['Full_Date'] = price_table['Full_Date'].dt.strftime('%d-%b-%Y')
+
         return price_table
     except Exception as e:
         st.error(f"Error processing data for {district_name}: {str(e)}")
         return pd.DataFrame()
 
-def find_nearest_district(lat, lon):
-    """Find the nearest district to given coordinates"""
+def find_nearest_district(click_data):
+    """Find the nearest district to clicked coordinates"""
+    clicked_lat = click_data['points'][0]['lat']
+    clicked_lon = click_data['points'][0]['lon']
+    
     min_dist = float('inf')
     nearest_district = None
     
     for district, coords in DISTRICT_COORDS.items():
-        dist = ((coords[0] - lat) ** 2 + (coords[1] - lon) ** 2) ** 0.5
-        if dist < 0.5:  # Reduced threshold for more precise selection
-            if dist < min_dist:
-                min_dist = dist
-                nearest_district = district
+        dist = ((coords[0] - clicked_lat) ** 2 + (coords[1] - clicked_lon) ** 2) ** 0.5
+        if dist < min_dist:
+            min_dist = dist
+            nearest_district = district
     
     return nearest_district
 
 def main():
+    st.set_page_config(layout="wide")
     st.title("Cement Price Analysis Dashboard")
     
     # Initialize session state
@@ -221,6 +228,8 @@ def main():
         st.session_state.processed_df = None
     if 'selected_district' not in st.session_state:
         st.session_state.selected_district = None
+    if 'last_clicked' not in st.session_state:
+        st.session_state.last_clicked = None
     
     # File upload
     uploaded_file = st.file_uploader("Upload SFDC CSV file", type=['csv'])
@@ -257,6 +266,11 @@ def main():
             color_discrete_sequence=['red']
         )
 
+        fig.update_traces(
+            marker=dict(size=12),
+            hovertemplate='<b>%{hovertext}</b><extra></extra>'
+        )
+
         fig.update_layout(
             margin={"r":0,"t":0,"l":0,"b":0},
             mapbox=dict(
@@ -264,19 +278,19 @@ def main():
                 zoom=4
             )
         )
-        
-        # Add click event handler
-        selected_point = st.plotly_chart(
+
+        # Display the map with click events enabled
+        clicked = plotly_chart = st.plotly_chart(
             fig,
             use_container_width=True,
             config={'displayModeBar': False}
         )
-        
-        # Handle click events
+
+        # Initialize selected_district if None
         if st.session_state.selected_district is None:
             st.session_state.selected_district = list(DISTRICT_COORDS.keys())[0]
-            
-        # District selection dropdown (synced with map)
+        
+        # District selection dropdown
         selected_district = st.selectbox(
             "Select a district to view prices",
             options=list(DISTRICT_COORDS.keys()),
@@ -286,7 +300,7 @@ def main():
         # Update selected district
         st.session_state.selected_district = selected_district
         
-        # Display price table with the selected mode
+        # Display price table
         if selected_district:
             st.subheader(f"Price Data for {selected_district}")
             price_table = create_price_table(
@@ -296,10 +310,13 @@ def main():
             )
             
             if len(price_table) > 0:
-                st.dataframe(price_table)
+                st.dataframe(
+                    price_table,
+                    use_container_width=True,
+                    hide_index=True
+                )
             else:
                 st.warning(f"No data available for {selected_district}")
 
 if __name__ == "__main__":
-    st.set_page_config(layout="wide")
     main()
