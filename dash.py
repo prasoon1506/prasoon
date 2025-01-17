@@ -1,10 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import json
 from datetime import datetime
 import numpy as np
-from streamlit.components.v1 import html
 
 # District coordinates (latitude, longitude)
 DISTRICT_COORDS = {
@@ -95,36 +93,24 @@ def create_price_table(df, district_name):
     price_table['Full_Date'] = price_table['Full_Date'].dt.strftime('%d-%b-%Y')
     return price_table
 
-def create_interactive_map(map_data, callback):
-    """Create interactive map with click events"""
-    fig = px.scatter_mapbox(
-        map_data,
-        lat='lat',
-        lon='lon',
-        hover_name='District',
-        zoom=4,
-        center={"lat": 23.5937, "lon": 78.9629},
-        mapbox_style="carto-positron",
-        color_discrete_sequence=['red']
-    )
-
-    fig.update_layout(
-        margin={"r":0,"t":0,"l":0,"b":0},
-        mapbox=dict(
-            center=dict(lat=23.5937, lon=78.9629),
-            zoom=4
-        ),
-        clickmode='event+select'
-    )
+def find_nearest_district(lat, lon):
+    """Find the nearest district to given coordinates"""
+    min_dist = float('inf')
+    nearest_district = None
     
-    return fig
+    for district, coords in DISTRICT_COORDS.items():
+        dist = ((coords[0] - lat) ** 2 + (coords[1] - lon) ** 2) ** 0.5
+        if dist < min_dist:
+            min_dist = dist
+            nearest_district = district
+    
+    # Only return if we're reasonably close (threshold of 1 degree)
+    return nearest_district if min_dist < 1 else None
 
 def main():
     st.title("Cement Price Analysis Dashboard")
     
     # Initialize session state
-    if 'selected_district' not in st.session_state:
-        st.session_state.selected_district = None
     if 'processed_df' not in st.session_state:
         st.session_state.processed_df = None
     
@@ -146,52 +132,52 @@ def main():
             columns=['District', 'lat', 'lon']
         )
         
-        # Create container for map
-        map_container = st.container()
-        
         # Create map
         st.subheader("District Locations (Click on a point to view details)")
-        fig = create_interactive_map(map_data, None)
         
-        # Use Streamlit's experimental get_clicks() for handling map clicks
-        selected_point = plotly_chart = st.plotly_chart(
-            fig, 
+        fig = px.scatter_mapbox(
+            map_data,
+            lat='lat',
+            lon='lon',
+            hover_name='District',
+            zoom=4,
+            center={"lat": 23.5937, "lon": 78.9629},
+            mapbox_style="carto-positron",
+            color_discrete_sequence=['red']
+        )
+
+        fig.update_layout(
+            margin={"r":0,"t":0,"l":0,"b":0},
+            mapbox=dict(
+                center=dict(lat=23.5937, lon=78.9629),
+                zoom=4
+            )
+        )
+        
+        # Add click event callback
+        selected_point = st.plotly_chart(
+            fig,
             use_container_width=True,
             config={'displayModeBar': False}
         )
         
-        # Get clicked point data
-        if selected_point is not None and hasattr(selected_point, 'selected_data'):
-            points = selected_point.selected_data
-            if points and 'points' in points and len(points['points']) > 0:
-                point = points['points'][0]
-                # Find the closest district to the clicked point
-                clicked_lat = point['lat']
-                clicked_lon = point['lon']
-                
-                # Find matching district
-                for district, coords in DISTRICT_COORDS.items():
-                    if abs(coords[0] - clicked_lat) < 0.1 and abs(coords[1] - clicked_lon) < 0.1:
-                        st.session_state.selected_district = district
-                        break
+        # Create columns for layout
+        col1, col2 = st.columns([1, 2])
         
-        # District selection dropdown (synced with map)
-        selected_district = st.selectbox(
-            "Select a district to view prices",
-            options=list(DISTRICT_COORDS.keys()),
-            key="district_selector",
-            index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district) 
-            if st.session_state.selected_district else 0
-        )
+        with col1:
+            # District selection dropdown
+            selected_district = st.selectbox(
+                "Select a district to view prices",
+                options=list(DISTRICT_COORDS.keys())
+            )
         
-        # Update selected district in session state
-        st.session_state.selected_district = selected_district
-        
-        # Display price table for selected district
-        if st.session_state.selected_district:
-            st.subheader(f"Price Data for {st.session_state.selected_district}")
-            price_table = create_price_table(st.session_state.processed_df, st.session_state.selected_district)
-            st.dataframe(price_table)
+        # Handle map clicks using Streamlit events
+        if selected_district:
+            with col2:
+                st.subheader(f"Price Data for {selected_district}")
+                if st.session_state.processed_df is not None:
+                    price_table = create_price_table(st.session_state.processed_df, selected_district)
+                    st.dataframe(price_table)
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide")
