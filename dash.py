@@ -3,8 +3,9 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 import numpy as np
+from collections import Counter
 
-# District coordinates (latitude, longitude)
+# District coordinates remain the same
 DISTRICT_COORDS = {
     'Ahmadabad': [23.0225, 72.5714],
     'Surat': [21.1702, 72.8311],
@@ -12,7 +13,7 @@ DISTRICT_COORDS = {
     'Udaipur': [24.5854, 73.7125],
     'Gurugram': [28.4595, 77.0266],
     'Bathinda': [30.2110, 74.9455],
-    'Delhi East': [28.7041, 77.1025],  # Changed from 'Delhi' to 'Delhi East'
+    'Delhi East': [28.7041, 77.1025],
     'Raipur': [21.2514, 81.6296],
     'Khorda': [20.1734, 85.6745],
     'Sambalpur': [21.4669, 83.9756],
@@ -24,6 +25,29 @@ DISTRICT_COORDS = {
     'Nagpur': [21.1458, 79.0882]
 }
 
+def get_most_common_price(prices):
+    """Get the most common price(s) from a list of prices"""
+    if not prices:
+        return None
+    price_counts = Counter(prices)
+    max_count = max(price_counts.values())
+    most_common = [p for p, count in price_counts.items() if count == max_count]
+    if len(most_common) == 1:
+        return str(most_common[0])
+    return '-'.join(map(str, sorted(most_common)))
+
+def find_closest_price(target_price, prices):
+    """Find the price closest to target price"""
+    if not prices:
+        return None
+    return min(prices, key=lambda x: abs(float(x) - float(target_price)))
+
+def find_farthest_price(target_price, prices):
+    """Find the price farthest from target price"""
+    if not prices:
+        return None
+    return max(prices, key=lambda x: abs(float(x) - float(target_price)))
+
 def process_district_data(df):
     """Process district data with the provided mapping"""
     district_mapping = {
@@ -33,7 +57,7 @@ def process_district_data(df):
         'Z2013_Udaipur': 'RJ(Udaipur)',
         'Z0703_Gurugram': 'HY(Gurgaon)',
         'Z1909_Bathinda': 'PB(Bhatinda)',
-        'Z3001_East': 'Delhi East',  # Changed to match with DISTRICT_COORDS
+        'Z3001_East': 'Delhi East',
         'Z3302_Raipur': 'CG(Raipur)',
         'Z1810_Khorda': 'ORR(Khorda)',
         'Z1804_Sambalpur': 'ORR(Sambalpur)',
@@ -59,7 +83,7 @@ def convert_to_date(row):
     except:
         return None
 
-def create_price_table(df, district_name):
+def create_price_table(df, district_name, show_all_prices=False):
     """Create price table for selected district"""
     try:
         # Get the corresponding district code
@@ -103,48 +127,76 @@ def create_price_table(df, district_name):
         target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
         is_target = any(d in district_name for d in target_districts)
         
-        # Filter brands
-        if is_target:
-            brands = ['JK LAKSHMI PRO+ CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
-        else:
-            brands = ['JK LAKSHMI CEMENT', 'SHREE CEMENT', 'ULTRATECH CEMENT']
+        # Define all brands
+        jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
+        all_brands = [
+            jk_brand,
+            'SHREE CEMENT',
+            'ULTRATECH CEMENT',
+            'AMBUJA CEMENT',
+            'JK SUPER CEMENT',
+            'WONDER CEMENT'
+        ]
         
         district_data = district_data[
-            district_data['Brand: Name'].str.upper().isin(brands)
+            district_data['Brand: Name'].str.upper().isin([b.upper() for b in all_brands])
         ]
         
         if len(district_data) == 0:
             return pd.DataFrame()
 
-        # Pivot table
-        price_table = district_data.pivot_table(
-            index='Full_Date',
-            columns='Brand: Name',
-            values='Whole Sale Price',
-            aggfunc=lambda x: ', '.join(map(str, set(x)))
-        ).reset_index()
+        if show_all_prices:
+            # Show all prices entered for each brand
+            price_table = district_data.pivot_table(
+                index='Full_Date',
+                columns='Brand: Name',
+                values='Whole Sale Price',
+                aggfunc=lambda x: ', '.join(map(str, set(x)))
+            ).reset_index()
+        else:
+            # Apply the special price selection rules
+            grouped_data = district_data.groupby(['Full_Date', 'Brand: Name'])['Whole Sale Price'].apply(list).reset_index()
+            dates = sorted(grouped_data['Full_Date'].unique())
+            
+            processed_data = []
+            for date in dates:
+                date_data = grouped_data[grouped_data['Full_Date'] == date]
+                row_data = {'Full_Date': date}
+                
+                # Get JK price (most common)
+                jk_prices = date_data[date_data['Brand: Name'] == jk_brand]['Whole Sale Price'].iloc[0] if not date_data[date_data['Brand: Name'] == jk_brand].empty else []
+                jk_price = get_most_common_price(jk_prices)
+                
+                if jk_price:
+                    row_data[jk_brand] = jk_price
+                    
+                    # Get Shree price (closest to JK)
+                    shree_prices = date_data[date_data['Brand: Name'] == 'SHREE CEMENT']['Whole Sale Price'].iloc[0] if not date_data[date_data['Brand: Name'] == 'SHREE CEMENT'].empty else []
+                    if shree_prices:
+                        row_data['SHREE CEMENT'] = find_closest_price(float(jk_price.split('-')[0]), shree_prices)
+                    
+                    # Get Ultratech price (farthest from JK)
+                    ultratech_prices = date_data[date_data['Brand: Name'] == 'ULTRATECH CEMENT']['Whole Sale Price'].iloc[0] if not date_data[date_data['Brand: Name'] == 'ULTRATECH CEMENT'].empty else []
+                    if ultratech_prices:
+                        row_data['ULTRATECH CEMENT'] = find_farthest_price(float(jk_price.split('-')[0]), ultratech_prices)
+                
+                # Get most common prices for other brands
+                for brand in ['AMBUJA CEMENT', 'JK SUPER CEMENT', 'WONDER CEMENT']:
+                    brand_prices = date_data[date_data['Brand: Name'] == brand]['Whole Sale Price'].iloc[0] if not date_data[date_data['Brand: Name'] == brand].empty else []
+                    if brand_prices:
+                        row_data[brand] = get_most_common_price(brand_prices)
+                
+                processed_data.append(row_data)
+            
+            price_table = pd.DataFrame(processed_data)
         
         if len(price_table) > 0:
-            price_table['Full_Date'] = price_table['Full_Date'].dt.strftime('%d-%b-%Y')
+            price_table['Full_Date'] = pd.to_datetime(price_table['Full_Date']).dt.strftime('%d-%b-%Y')
         
         return price_table
     except Exception as e:
         st.error(f"Error processing data for {district_name}: {str(e)}")
         return pd.DataFrame()
-
-def find_nearest_district(lat, lon):
-    """Find the nearest district to given coordinates"""
-    min_dist = float('inf')
-    nearest_district = None
-    
-    for district, coords in DISTRICT_COORDS.items():
-        dist = ((coords[0] - lat) ** 2 + (coords[1] - lon) ** 2) ** 0.5
-        if dist < 0.5:  # Reduced threshold for more precise selection
-            if dist < min_dist:
-                min_dist = dist
-                nearest_district = district
-    
-    return nearest_district
 
 def main():
     st.title("Cement Price Analysis Dashboard")
@@ -213,13 +265,20 @@ def main():
             index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district)
         )
         
+        # Add toggle for showing all prices
+        show_all_prices = st.checkbox("Show all entered prices", value=False)
+        
         # Update selected district
         st.session_state.selected_district = selected_district
         
         # Display price table
         if selected_district:
             st.subheader(f"Price Data for {selected_district}")
-            price_table = create_price_table(st.session_state.processed_df, selected_district)
+            price_table = create_price_table(
+                st.session_state.processed_df,
+                selected_district,
+                show_all_prices
+            )
             
             if len(price_table) > 0:
                 st.dataframe(price_table)
