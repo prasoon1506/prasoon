@@ -135,7 +135,7 @@ def main():
         show_all_prices = st.checkbox("Show all prices entered for each brand", value=False)
         map_data = pd.DataFrame([(dist, coord[0], coord[1]) for dist, coord in DISTRICT_COORDS.items()],columns=['District','lat','lon'])
         st.subheader("District Locations (Click on a point to select)")
-        fig = px.scatter_mapbox(map_data,lat='latitude',lon='longitude','hover_name='District','zoom=5,center={"lat":23.5937,
+        fig = px.scatter_mapbox(map_data,
             map_data,
             lat='lat',
             lon='lon',
