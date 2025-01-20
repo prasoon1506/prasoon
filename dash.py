@@ -239,6 +239,109 @@ def create_brand_data_table(df, district_name, dealer_name, brand_name):
     except Exception as e:
         st.error(f"Error processing data for {district_name}, {brand_name}: {str(e)}")
         return pd.DataFrame()
+def get_district_officers(df, district_name):
+    district_code = None
+    for code, mapped in {
+        'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat',
+        'Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur',
+        'Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
+        'Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur',
+        'Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur',
+        'Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar',
+        'Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat',
+        'Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'
+    }.items():
+        if mapped == district_name:
+            district_code = code
+            break
+
+    if district_code is None:
+        return []
+
+    district_data = df[df['District: Name'] == district_code].copy()
+    
+    # Modified filtering conditions
+    officer_data = district_data[
+        (district_data['Owner: Full Name'].notna()) &  # Has owner name
+        (
+            (district_data['Account: Account Name'].isna()) |  # Account name is null
+            (district_data['Account: Account Name'].str.strip() == '') |  # Account name is empty string
+            (district_data['Account: Account Name'].str.lower().str.contains('officer', na=False)) |  # Contains 'officer'
+            (district_data['Account: Account Name'].str.lower().str.contains('manager', na=False))    # Contains 'manager'
+        )
+    ]
+    
+    # Add debug print
+    print(f"Found {len(officer_data)} officer entries for district {district_name}")
+    
+    # Count entries per officer
+    officer_counts = officer_data['Owner: Full Name'].value_counts()
+    
+    # Create list of officers sorted by number of entries
+    officers = [(name, count) for name, count in officer_counts.items()]
+    officers.sort(key=lambda x: (-x[1], x[0]))  # Sort by count (descending) then name
+    
+    return officers
+
+def create_officer_data_table(df, district_name, officer_name, brand_name):
+    try:
+        district_code = None
+        for code, mapped in {
+            'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat',
+            'Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur',
+            'Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
+            'Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur',
+            'Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur',
+            'Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar',
+            'Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat',
+            'Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'
+        }.items():
+            if mapped == district_name:
+                district_code = code
+                break
+
+        if district_code is None:
+            return pd.DataFrame()
+
+        district_data = df[df['District: Name'] == district_code].copy()
+        
+        # Modified filtering conditions to match get_district_officers
+        district_data = district_data[
+            (district_data['Owner: Full Name'] == officer_name) &
+            (district_data['Brand: Name'].str.upper() == brand_name.upper()) &
+            (
+                (district_data['Account: Account Name'].isna()) |
+                (district_data['Account: Account Name'].str.strip() == '') |
+                (district_data['Account: Account Name'].str.lower().str.contains('officer', na=False)) |
+                (district_data['Account: Account Name'].str.lower().str.contains('manager', na=False))
+            )
+        ]
+
+        # Add debug print
+        print(f"Found {len(district_data)} entries for officer {officer_name} and brand {brand_name}")
+
+        if len(district_data) == 0:
+            return pd.DataFrame()
+
+        district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
+        district_data = district_data.dropna(subset=['Full_Date'])
+        district_data = district_data.sort_values('Full_Date', ascending=False)
+
+        # Select only Date and WSP columns
+        columns = {
+            'Full_Date': 'Date',
+            'Whole Sale Price': 'WSP'
+        }
+
+        result_data = district_data[columns.keys()].copy()
+        result_data = result_data.rename(columns=columns)
+        result_data['Date'] = result_data['Date'].dt.strftime('%d-%b-%Y')
+        
+        return result_data
+
+    except Exception as e:
+        st.error(f"Error processing officer data for {district_name}, {brand_name}: {str(e)}")
+        return pd.DataFrame()
 def main():
     st.set_page_config(layout="wide")
     st.title("Cement Price Analysis Dashboard")
