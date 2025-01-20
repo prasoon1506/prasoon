@@ -45,7 +45,96 @@ BRANDS = [
     'AMBUJA CEMENT',
     'JK SUPER CEMENT'
 ]
+def calculate_price_changes(df, district_name, dealer_or_officer_name, brand_name, is_officer=False):
+    """
+    Calculate price changes for January and December end
+    Returns a tuple of (jan_change, dec_change)
+    """
+    try:
+        district_code = None
+        for code, mapped in {
+            'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat',
+            'Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur',
+            'Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
+            'Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur',
+            'Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur',
+            'Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar',
+            'Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat',
+            'Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'
+        }.items():
+            if mapped == district_name:
+                district_code = code
+                break
 
+        if district_code is None:
+            return None, None
+
+        district_data = df[df['District: Name'] == district_code].copy()
+        
+        # Filter based on whether we're looking at officer or dealer data
+        if is_officer:
+            district_data = district_data[
+                (district_data['Owner: Full Name'] == dealer_or_officer_name) &
+                (district_data['Brand: Name'].str.upper() == brand_name.upper()) &
+                (
+                    (district_data['Account: Account Name'].isna()) |
+                    (district_data['Account: Account Name'].str.strip() == '') |
+                    (district_data['Account: Account Name'].str.lower().str.contains('officer', na=False)) |
+                    (district_data['Account: Account Name'].str.lower().str.contains('manager', na=False))
+                )
+            ]
+        else:
+            district_data = district_data[
+                (district_data['Account: Account Name'] == dealer_or_officer_name) &
+                (district_data['Brand: Name'].str.upper() == brand_name.upper())
+            ]
+
+        district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
+        district_data = district_data.dropna(subset=['Full_Date'])
+        district_data = district_data.sort_values('Full_Date')
+        
+        # Get January changes
+        jan_data = district_data[district_data['Month'].str.lower() == 'january']
+        if len(jan_data) >= 2:
+            jan_first = jan_data.iloc[0]['Whole Sale Price']
+            jan_last = jan_data.iloc[-1]['Whole Sale Price']
+            jan_change = jan_last - jan_first
+        else:
+            jan_change = None
+
+        # Get December end changes (30th and 31st)
+        dec_data = district_data[
+            (district_data['Month'].str.lower() == 'december') & 
+            (district_data['Date'].isin(['30', '31']))
+        ]
+        if len(dec_data) > 0:
+            dec_first = district_data[district_data['Month'].str.lower() == 'december'].iloc[0]['Whole Sale Price']
+            dec_last = dec_data.iloc[-1]['Whole Sale Price']
+            dec_change = dec_last - dec_first
+        else:
+            dec_change = None
+
+        return jan_change, dec_change
+
+    except Exception as e:
+        print(f"Error calculating price changes: {str(e)}")
+        return None, None
+
+def display_price_change_summary(jan_change, dec_change):
+    """Generate price change summary text"""
+    if jan_change is None:
+        return "No price changes recorded in January"
+    
+    summary = []
+    if jan_change != 0:
+        direction = "increased" if jan_change > 0 else "decreased"
+        summary.append(f"WSP has {direction} by {abs(jan_change)} Rs. in Jan")
+    
+    if dec_change is not None and dec_change != 0:
+        direction = "increase" if dec_change > 0 else "decrease"
+        summary.append(f"({abs(dec_change)} Rs. {direction} also happened in late Dec)")
+    
+    return " ".join(summary) if summary else "No price changes in January"
 def get_district_officers(df, district_name):
     district_code = None
     for code, mapped in {
@@ -353,7 +442,6 @@ def main():
     if 'selected_dealer' not in st.session_state:
         st.session_state.selected_dealer = None
 
-    # File input options
     file_option = st.radio(
         "Choose input type",
         ["Upload SFDC CSV file", "Upload processed district file"]
@@ -374,7 +462,6 @@ def main():
                 st.session_state.processed_df = df
             st.success("File processed successfully!")
 
-        # Create map data
         map_data = pd.DataFrame(
             [(dist, coord[0], coord[1]) for dist, coord in DISTRICT_COORDS.items()],
             columns=['District', 'lat', 'lon']
@@ -411,33 +498,27 @@ def main():
             config={'displayModeBar': False}
         )
 
-        # Initialize selected_district if None
         if st.session_state.selected_district is None:
             st.session_state.selected_district = list(DISTRICT_COORDS.keys())[0]
 
-        # District selection dropdown
         selected_district = st.selectbox(
             "Select a district",
             options=list(DISTRICT_COORDS.keys()),
             index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district)
         )
 
-        # Update selected district
         if selected_district != st.session_state.selected_district:
             st.session_state.selected_district = selected_district
             st.session_state.selected_dealer = None
 
         # DEALER SECTION
         st.subheader("Dealer Data")
-        
-        # Get dealers for selected district
         dealers = get_district_dealers(st.session_state.processed_df, selected_district)
         
         if dealers:
             dealer_options = [f"{dealer[0]} ({dealer[1]} entries)" for dealer in dealers]
             dealer_names = [dealer[0] for dealer in dealers]
             
-            # Dealer selection dropdown
             dealer_index = 0
             if st.session_state.selected_dealer in dealer_names:
                 dealer_index = dealer_names.index(st.session_state.selected_dealer)
@@ -449,24 +530,31 @@ def main():
                 key="dealer_select"
             )
             
-            # Extract dealer name from selected option
             selected_dealer = dealer_names[dealer_options.index(selected_dealer_option)]
             st.session_state.selected_dealer = selected_dealer
 
-            # Determine which JK brand to show based on district
             target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
             is_target = any(d in selected_district for d in target_districts)
             jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
 
-            # Create tabs for each brand
             all_brands = [jk_brand, 'ULTRATECH CEMENT', 'WONDER CEMENT', 
                          'SHREE CEMENT', 'AMBUJA CEMENT', 'JK SUPER CEMENT']
 
             dealer_tabs = st.tabs([f"{brand.title()}" for brand in all_brands])
 
-            # Display data for each brand in its respective tab
             for tab, brand in zip(dealer_tabs, all_brands):
                 with tab:
+                    # Calculate and display price changes
+                    jan_change, dec_change = calculate_price_changes(
+                        st.session_state.processed_df,
+                        selected_district,
+                        selected_dealer,
+                        brand,
+                        is_officer=False
+                    )
+                    
+                    st.info(display_price_change_summary(jan_change, dec_change))
+                    
                     brand_data = create_brand_data_table(
                         st.session_state.processed_df,
                         selected_district,
@@ -489,30 +577,35 @@ def main():
         # OFFICER SECTION
         st.divider()
         st.subheader("Higher Ranked Officers Data")
-        
-        # Get officers for selected district
         officers = get_district_officers(st.session_state.processed_df, selected_district)
         
         if officers:
             officer_options = [f"{officer[0]} ({officer[1]} entries)" for officer in officers]
             officer_names = [officer[0] for officer in officers]
             
-            # Officer selection dropdown
             selected_officer_option = st.selectbox(
                 "Select an officer",
                 options=officer_options,
                 key="officer_select"
             )
             
-            # Extract officer name from selected option
             selected_officer = officer_names[officer_options.index(selected_officer_option)]
 
-            # Create tabs for each brand (reuse brands from dealer section)
             officer_tabs = st.tabs([f"{brand.title()} (Officer Data)" for brand in all_brands])
 
-            # Display data for each brand in its respective tab
             for tab, brand in zip(officer_tabs, all_brands):
                 with tab:
+                    # Calculate and display price changes
+                    jan_change, dec_change = calculate_price_changes(
+                        st.session_state.processed_df,
+                        selected_district,
+                        selected_officer,
+                        brand,
+                        is_officer=True
+                    )
+                    
+                    st.info(display_price_change_summary(jan_change, dec_change))
+                    
                     officer_data = create_officer_data_table(
                         st.session_state.processed_df,
                         selected_district,
