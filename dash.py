@@ -767,7 +767,7 @@ def main():
 
         if show_analysis != st.session_state.show_decision_analysis:
             st.session_state.show_decision_analysis = show_analysis
-            st.experimental_rerun()
+            #st.experimental_rerun()
 
         if st.session_state.show_decision_analysis:
             create_decision_analysis_page(st.session_state.processed_df, selected_district)
