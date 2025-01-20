@@ -16,6 +16,16 @@ DISTRICT_COORDS = {
     'Indore': [22.7196, 75.8577], 'Nagpur': [21.1458, 79.0882]
 }
 
+BRANDS = [
+    'JK LAKSHMI CEMENT',
+    'JK LAKSHMI PRO+ CEMENT',
+    'ULTRATECH CEMENT',
+    'WONDER CEMENT',
+    'SHREE CEMENT',
+    'AMBUJA CEMENT',
+    'JK SUPER CEMENT'
+]
+
 def process_district_data(df):
     district_mapping = {
         'Z0605_Ahmadabad': 'GJ(Ahmadabad)', 'Z0616_Surat': 'GJ(Surat)',
@@ -61,17 +71,7 @@ def get_district_dealers(df, district_name):
 
     district_data = df[df['District: Name'] == district_code].copy()
     
-    # Get JK brand name based on district
-    target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
-    is_target = any(d in district_name for d in target_districts)
-    jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
-    
-    # Filter for JK brand
-    district_data = district_data[
-        district_data['Brand: Name'].str.upper() == jk_brand.upper()
-    ]
-
-    # Count entries per dealer
+    # Count entries per dealer across all brands
     dealer_counts = district_data['Account: Account Name'].value_counts()
     
     # Create list of dealers sorted by number of entries
@@ -80,7 +80,7 @@ def get_district_dealers(df, district_name):
     
     return dealers
 
-def create_dealer_data_table(df, district_name, dealer_name):
+def create_brand_data_table(df, district_name, dealer_name, brand_name):
     try:
         district_code = None
         for code, mapped in {
@@ -101,7 +101,10 @@ def create_dealer_data_table(df, district_name, dealer_name):
             return pd.DataFrame()
 
         district_data = df[df['District: Name'] == district_code].copy()
-        district_data = district_data[district_data['Account: Account Name'] == dealer_name]
+        district_data = district_data[
+            (district_data['Account: Account Name'] == dealer_name) &
+            (district_data['Brand: Name'].str.upper() == brand_name.upper())
+        ]
 
         if len(district_data) == 0:
             return pd.DataFrame()
@@ -109,19 +112,6 @@ def create_dealer_data_table(df, district_name, dealer_name):
         district_data['Full_Date'] = district_data.apply(convert_to_date, axis=1)
         district_data = district_data.dropna(subset=['Full_Date'])
         district_data = district_data.sort_values('Full_Date', ascending=False)
-
-        # Check if district is in target districts
-        target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
-        is_target = any(d in district_name for d in target_districts)
-        jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
-
-        # Filter for JK brand only
-        district_data = district_data[
-            district_data['Brand: Name'].str.upper() == jk_brand.upper()
-        ]
-
-        if len(district_data) == 0:
-            return pd.DataFrame()
 
         # Select and rename columns
         columns = {
@@ -140,7 +130,7 @@ def create_dealer_data_table(df, district_name, dealer_name):
         return result_data
 
     except Exception as e:
-        st.error(f"Error processing data for {district_name}: {str(e)}")
+        st.error(f"Error processing data for {district_name}, {brand_name}: {str(e)}")
         return pd.DataFrame()
 
 def main():
@@ -249,22 +239,36 @@ def main():
             selected_dealer = dealer_names[dealer_options.index(selected_dealer_option)]
             st.session_state.selected_dealer = selected_dealer
 
-            # Display dealer data
-            st.subheader(f"Price Data for {selected_dealer}")
-            dealer_data = create_dealer_data_table(
-                st.session_state.processed_df,
-                selected_district,
-                selected_dealer
-            )
+            # Determine which JK brand to show based on district
+            target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
+            is_target = any(d in selected_district for d in target_districts)
+            jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
 
-            if len(dealer_data) > 0:
-                st.dataframe(
-                    dealer_data,
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.warning(f"No data available for {selected_dealer}")
+            # Create tabs for each brand
+            all_brands = [jk_brand, 'ULTRATECH CEMENT', 'WONDER CEMENT', 
+                         'SHREE CEMENT', 'AMBUJA CEMENT', 'JK SUPER CEMENT']
+
+            tabs = st.tabs([f"{brand.title()}" for brand in all_brands])
+
+            # Display data for each brand in its respective tab
+            for tab, brand in zip(tabs, all_brands):
+                with tab:
+                    brand_data = create_brand_data_table(
+                        st.session_state.processed_df,
+                        selected_district,
+                        selected_dealer,
+                        brand
+                    )
+
+                    if len(brand_data) > 0:
+                        st.dataframe(
+                            brand_data,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.info(f"No {brand} data available for this dealer")
+
         else:
             st.warning(f"No dealers found in {selected_district}")
 
