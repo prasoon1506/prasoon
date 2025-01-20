@@ -136,7 +136,6 @@ def main():
         map_data = pd.DataFrame([(dist, coord[0], coord[1]) for dist, coord in DISTRICT_COORDS.items()],columns=['District','lat','lon'])
         st.subheader("District Locations (Click on a point to select)")
         fig = px.scatter_mapbox(map_data,
-            map_data,
             lat='lat',
             lon='lon',
             hover_name='District',
