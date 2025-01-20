@@ -676,20 +676,19 @@ def process_district_data(df):
     df['District: Name'] = df['District: Name'].fillna('').astype(str).str.strip()
     df['Mapped_District'] = df['District: Name'].map(district_mapping)
     return df.dropna(subset=['Mapped_District'])
-
 def main():
-    st.set_page_config(layout="wide", page_title="Cement Price Analysis")
+    st.set_page_config(layout="wide")
     st.title("Cement Price Analysis Dashboard")
-    
-    # Initialize session state
+
     if 'processed_df' not in st.session_state:
         st.session_state.processed_df = None
     if 'selected_district' not in st.session_state:
         st.session_state.selected_district = None
+    if 'selected_dealer' not in st.session_state:
+        st.session_state.selected_dealer = None
     if 'show_decision_analysis' not in st.session_state:
         st.session_state.show_decision_analysis = False
 
-    # File upload section
     file_option = st.radio(
         "Choose input type",
         ["Upload SFDC CSV file", "Upload processed district file"]
@@ -710,13 +709,12 @@ def main():
                 st.session_state.processed_df = df
             st.success("File processed successfully!")
 
-        # Create map visualization
         map_data = pd.DataFrame(
             [(dist, coord[0], coord[1]) for dist, coord in DISTRICT_COORDS.items()],
             columns=['District', 'lat', 'lon']
         )
 
-        st.subheader("District Locations")
+        st.subheader("District Locations (Click on a point to select)")
         fig = px.scatter_mapbox(
             map_data,
             lat='lat',
@@ -735,7 +733,6 @@ def main():
 
         fig.update_layout(
             margin={"r": 0, "t": 0, "l": 0, "b": 0},
-            height=400,
             mapbox=dict(
                 center=dict(lat=23.5937, lon=78.9629),
                 zoom=4
@@ -748,24 +745,8 @@ def main():
             config={'displayModeBar': False}
         )
 
-        # District selection
         if st.session_state.selected_district is None:
             st.session_state.selected_district = list(DISTRICT_COORDS.keys())[0]
-
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            selected_district = st.selectbox(
-                "Select a district",
-                options=list(DISTRICT_COORDS.keys()),
-                index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district)
-            )
-
-        with col2:
-            show_analysis = st.checkbox(
-                "Show Decision Making Analysis",
-                value=st.session_state.show_decision_analysis,
-                help="Show comprehensive price analysis for decision making"
-            )
 
         selected_district = st.selectbox(
             "Select a district",
@@ -776,12 +757,25 @@ def main():
         if selected_district != st.session_state.selected_district:
             st.session_state.selected_district = selected_district
             st.session_state.selected_dealer = None
+            st.session_state.show_decision_analysis = False
 
-        # DEALER SECTION
-        st.subheader("Dealer Data")
-        dealers = get_district_dealers(st.session_state.processed_df, selected_district)
+        # Add decision analysis option
+        show_analysis = st.checkbox(
+            "Show Decision Making Analysis",
+            value=st.session_state.show_decision_analysis
+        )
+
+        if show_analysis != st.session_state.show_decision_analysis:
+            st.session_state.show_decision_analysis = show_analysis
+            st.experimental_rerun()
+
+        if st.session_state.show_decision_analysis:
+            create_decision_analysis_page(st.session_state.processed_df, selected_district)
+        else:
+         st.subheader("Dealer Data")
+         dealers = get_district_dealers(st.session_state.processed_df, selected_district)
         
-        if dealers:
+         if dealers:
             dealer_options = [f"{dealer[0]} ({dealer[1]} entries)" for dealer in dealers]
             dealer_names = [dealer[0] for dealer in dealers]
             
@@ -837,15 +831,15 @@ def main():
                     else:
                         st.info(f"No {brand} data available for this dealer")
 
-        else:
+         else:
             st.warning(f"No dealers found in {selected_district}")
 
         # OFFICER SECTION
-        st.divider()
-        st.subheader("Higher Ranked Officers Data")
-        officers = get_district_officers(st.session_state.processed_df, selected_district)
+         st.divider()
+         st.subheader("Higher Ranked Officers Data")
+         officers = get_district_officers(st.session_state.processed_df, selected_district)
         
-        if officers:
+         if officers:
             officer_options = [f"{officer[0]} ({officer[1]} entries)" for officer in officers]
             officer_names = [officer[0] for officer in officers]
             
@@ -888,7 +882,7 @@ def main():
                     else:
                         st.info(f"No {brand} WSP data available from this officer")
 
-        else:
+         else:
             st.info(f"No officer entries found for {selected_district}")
 
 if __name__ == "__main__":
