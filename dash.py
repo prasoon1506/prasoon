@@ -48,6 +48,7 @@ BRANDS = [
 def calculate_price_changes(df, district_name, dealer_or_officer_name, brand_name, is_officer=False):
     """
     Calculate price changes for January and December end
+    If January 1st price is not available, uses last available December price
     Returns a tuple of (jan_change, dec_change)
     """
     try:
@@ -95,21 +96,29 @@ def calculate_price_changes(df, district_name, dealer_or_officer_name, brand_nam
         
         # Get January changes
         jan_data = district_data[district_data['Month'].str.lower() == 'january']
+        dec_data = district_data[district_data['Month'].str.lower() == 'december']
+        
+        # Calculate January change
         if len(jan_data) >= 2:
             jan_first = jan_data.iloc[0]['Whole Sale Price']
             jan_last = jan_data.iloc[-1]['Whole Sale Price']
             jan_change = jan_last - jan_first
+        elif len(jan_data) == 1:
+            # If only one January entry exists, look for last December price
+            if len(dec_data) > 0:
+                dec_last_price = dec_data.iloc[-1]['Whole Sale Price']
+                jan_price = jan_data.iloc[0]['Whole Sale Price']
+                jan_change = jan_price - dec_last_price
+            else:
+                jan_change = None
         else:
             jan_change = None
 
         # Get December end changes (30th and 31st)
-        dec_data = district_data[
-            (district_data['Month'].str.lower() == 'december') & 
-            (district_data['Date'].isin(['30', '31']))
-        ]
-        if len(dec_data) > 0:
-            dec_first = district_data[district_data['Month'].str.lower() == 'december'].iloc[0]['Whole Sale Price']
-            dec_last = dec_data.iloc[-1]['Whole Sale Price']
+        dec_end_data = dec_data[dec_data['Date'].isin(['30', '31'])]
+        if len(dec_data) > 0 and len(dec_end_data) > 0:
+            dec_first = dec_data.iloc[0]['Whole Sale Price']
+            dec_last = dec_end_data.iloc[-1]['Whole Sale Price']
             dec_change = dec_last - dec_first
         else:
             dec_change = None
