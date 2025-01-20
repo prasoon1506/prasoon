@@ -40,7 +40,47 @@ def convert_to_date(row):
     except:
         return None
 
-def create_dealer_table(df, district_name):
+def get_district_dealers(df, district_name):
+    district_code = None
+    for code, mapped in {
+        'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat',
+        'Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur',
+        'Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
+        'Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur',
+        'Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur',
+        'Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar',
+        'Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat',
+        'Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'
+    }.items():
+        if mapped == district_name:
+            district_code = code
+            break
+
+    if district_code is None:
+        return []
+
+    district_data = df[df['District: Name'] == district_code].copy()
+    
+    # Get JK brand name based on district
+    target_districts = ['Raipur', 'Balaghat', 'Khorda', 'Nagpur', 'Sambalpur']
+    is_target = any(d in district_name for d in target_districts)
+    jk_brand = 'JK LAKSHMI PRO+ CEMENT' if is_target else 'JK LAKSHMI CEMENT'
+    
+    # Filter for JK brand
+    district_data = district_data[
+        district_data['Brand: Name'].str.upper() == jk_brand.upper()
+    ]
+
+    # Count entries per dealer
+    dealer_counts = district_data['Account: Account Name'].value_counts()
+    
+    # Create list of dealers sorted by number of entries
+    dealers = [(name, count) for name, count in dealer_counts.items()]
+    dealers.sort(key=lambda x: (-x[1], x[0]))  # Sort by count (descending) then name
+    
+    return dealers
+
+def create_dealer_data_table(df, district_name, dealer_name):
     try:
         district_code = None
         for code, mapped in {
@@ -61,6 +101,8 @@ def create_dealer_table(df, district_name):
             return pd.DataFrame()
 
         district_data = df[df['District: Name'] == district_code].copy()
+        district_data = district_data[district_data['Account: Account Name'] == dealer_name]
+
         if len(district_data) == 0:
             return pd.DataFrame()
 
@@ -81,10 +123,9 @@ def create_dealer_table(df, district_name):
         if len(district_data) == 0:
             return pd.DataFrame()
 
-        # Select relevant columns and rename them
+        # Select and rename columns
         columns = {
             'Full_Date': 'Date',
-            'Account: Account Name': 'Dealer Name',
             'Account: Dealer Category': 'Dealer Category',
             'Whole Sale Price': 'WSP',
             'Retail Price': 'Retail Price',
@@ -110,6 +151,8 @@ def main():
         st.session_state.processed_df = None
     if 'selected_district' not in st.session_state:
         st.session_state.selected_district = None
+    if 'selected_dealer' not in st.session_state:
+        st.session_state.selected_dealer = None
 
     # File input options
     file_option = st.radio(
@@ -174,30 +217,56 @@ def main():
 
         # District selection dropdown
         selected_district = st.selectbox(
-            "Select a district to view dealer data",
+            "Select a district",
             options=list(DISTRICT_COORDS.keys()),
             index=list(DISTRICT_COORDS.keys()).index(st.session_state.selected_district)
         )
 
         # Update selected district
-        st.session_state.selected_district = selected_district
+        if selected_district != st.session_state.selected_district:
+            st.session_state.selected_district = selected_district
+            st.session_state.selected_dealer = None
 
-        # Display dealer table
-        if selected_district:
-            st.subheader(f"Dealer Data for {selected_district}")
-            dealer_table = create_dealer_table(
+        # Get dealers for selected district
+        dealers = get_district_dealers(st.session_state.processed_df, selected_district)
+        
+        if dealers:
+            dealer_options = [f"{dealer[0]} ({dealer[1]} entries)" for dealer in dealers]
+            dealer_names = [dealer[0] for dealer in dealers]
+            
+            # Dealer selection dropdown
+            dealer_index = 0
+            if st.session_state.selected_dealer in dealer_names:
+                dealer_index = dealer_names.index(st.session_state.selected_dealer)
+                
+            selected_dealer_option = st.selectbox(
+                "Select a dealer",
+                options=dealer_options,
+                index=dealer_index
+            )
+            
+            # Extract dealer name from selected option
+            selected_dealer = dealer_names[dealer_options.index(selected_dealer_option)]
+            st.session_state.selected_dealer = selected_dealer
+
+            # Display dealer data
+            st.subheader(f"Price Data for {selected_dealer}")
+            dealer_data = create_dealer_data_table(
                 st.session_state.processed_df,
-                selected_district
+                selected_district,
+                selected_dealer
             )
 
-            if len(dealer_table) > 0:
+            if len(dealer_data) > 0:
                 st.dataframe(
-                    dealer_table,
+                    dealer_data,
                     use_container_width=True,
                     hide_index=True
                 )
             else:
-                st.warning(f"No data available for {selected_district}")
+                st.warning(f"No data available for {selected_dealer}")
+        else:
+            st.warning(f"No dealers found in {selected_district}")
 
 if __name__ == "__main__":
     main()
