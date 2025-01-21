@@ -105,9 +105,7 @@ def process_district_data(df):
     return df.dropna(subset=['Mapped_District'])
 def get_district_dealers(df, district_name):
     district_code = None
-    for code, mapped in {'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat','Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur','Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
-        'Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur','Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur','Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar',
-        'Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat','Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'}.items():
+    for code, mapped in {'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat','Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur','Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda','Z3001_East': 'Delhi East', 'Z3302_Raipur': 'Raipur','Z1810_Khorda': 'Khorda', 'Z1804_Sambalpur': 'Sambalpur','Z2405_Ghaziabad': 'Ghaziabad', 'Z3506_Haridwar': 'Haridwar','Z3505_Dehradun': 'Dehradun', 'Z1230_Balaghat': 'Balaghat','Z1226_Indore': 'Indore', 'Z1329_Nagpur': 'Nagpur'}.items():
         if mapped == district_name:
             district_code = code
             break
