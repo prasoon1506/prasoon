@@ -103,14 +103,6 @@ def process_district_data(df):
     df['District: Name'] = df['District: Name'].fillna('').astype(str).str.strip()
     df['Mapped_District'] = df['District: Name'].map(district_mapping)
     return df.dropna(subset=['Mapped_District'])
-def convert_to_date(row):
-    try:
-        day = int(float(row['Date']))
-        month = str(row['Month']).strip()
-        year = 2024 if month.lower() == 'december' else 2025
-        return pd.to_datetime(f"{year}-{month}-{day}", format="%Y-%B-%d")
-    except:
-        return None
 def get_district_dealers(df, district_name):
     district_code = None
     for code, mapped in {'Z0605_Ahmadabad': 'Ahmadabad', 'Z0616_Surat': 'Surat','Z2020_Jaipur': 'Jaipur', 'Z2013_Udaipur': 'Udaipur','Z0703_Gurugram': 'Gurugram', 'Z1909_Bathinda': 'Bathinda',
