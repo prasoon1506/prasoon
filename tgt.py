@@ -141,7 +141,6 @@ if check_password():
     style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4A708B')),('BACKGROUND', (0, len(table_data) - 3), (-1, len(table_data) - 1), colors.orange),('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),('FONTSIZE', (0, 0), (-1, 0), 12),('BOTTOMPADDING', (0, 0), (-1, 0), 10),('BACKGROUND', (0, 1), (-1, -4), colors.white),('TEXTCOLOR', (0, 1), (-1, -1), colors.black),('ALIGN', (0, 0), (-1, -1), 'CENTER'),('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),('FONTSIZE', (0, 1), (-1, -1), 10),('GRID', (0, 0), (-1, -1), 1, colors.lightgrey)])
     table.setStyle(style)
     elements.append(table)
-
     footnote_style = getSampleStyleSheet()['Normal']
     footnote_style.fontSize = 8
     footnote_style.leading = 10 
@@ -257,7 +256,6 @@ if check_password():
         else:
             st.warning("No data available for the selected Zone and Brand combination.")
         st.markdown("<h3>Detailed Sales Forecast</h3>", unsafe_allow_html=True)
-        
         share_df = pd.DataFrame({'Zone': filtered_data['Zone'],'Brand': filtered_data['Brand'],'October 2024 Target': filtered_data['Month Tgt (Oct)'],'October Projection': filtered_data['Predicted Oct 2024'],'October 2023 Sales': filtered_data['Total Oct 2023'],'YoY Growth(Projected)': filtered_data['YoY Growth']})
         styled_df = style_dataframe(share_df)
         st.dataframe(styled_df, use_container_width=True,hide_index=True)
