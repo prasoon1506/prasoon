@@ -532,14 +532,7 @@ def process_excel_file(uploaded_file, requires_editing):
 def main():
     st.set_page_config(page_title="Price Tracker", layout="wide", page_icon="💰")
     st.title("📊 Price Tracker Analysis Tool")
-    st.markdown("""
-    ### Welcome to the Price Tracker Analysis Tool
-    
-    **Instructions:**
-    1. Upload your Excel price tracking file
-    2. Choose whether the file needs initial editing
-    3. Add new data, analyze regions, and download processed files
-    """)
+    st.markdown("""### Welcome to the Price Tracker Analysis Tool**Instructions:**1. Upload your Excel price tracking file2. Choose whether the file needs initial editing3. Add new data, analyze regions, and download processed files""")
     uploaded_file = st.file_uploader("Please upload the Price Tracker file", type=['xlsx'], help="Upload an Excel file containing price tracking data")
     if uploaded_file is not None:
         requires_editing = st.radio("Does this file require initial editing?", ["No", "Yes"],help="Select 'Yes' if the uploaded file needs preprocessing")
