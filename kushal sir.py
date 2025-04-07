@@ -1,4 +1,4 @@
-# Libraries
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,21 +8,14 @@ from prophet.plot import plot_plotly, plot_components_plotly, add_changepoints_t
 import itertools
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-# Part 1: Shelter Demand Forecasting
-
-# Load the dataset
 df = pd.read_csv("DHS_Daily_Report_2020.csv")
 
-# Transform the Date Variable
 df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%Y')
 
-# Pick the variables
 df = df[['Date', 'Total.Individuals.in.Shelter', 'Easter', 'Thanksgiving', 'Christmas', 'Temperature']]
 
-# Change variable name - Prophet requires 'ds' and 'y' column names
 df = df.rename(columns={'Date': 'ds', 'Total.Individuals.in.Shelter': 'y'})
 
-# Create plot
 plt.figure(figsize=(12, 6))
 plt.plot(df['ds'], df['y'])
 plt.xlabel('Time')
@@ -32,7 +25,6 @@ plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
 
-######################### Holidays #############
 
 # Easter
 easter_dates = df[df['Easter'] == 1]['ds'].tolist()
