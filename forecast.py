@@ -34,7 +34,11 @@ class EndogenousRecurrentNetworkNode(nn.Module):
         self.l_depth = layer_depth
         self.lstm_architecture = nn.LSTM(input_dimensionality, hidden_node_capacity, layer_depth, batch_first=True, dropout=0.2)
         self.regression_head_topology = nn.Sequential(
-            nn.Linear(hidden_node_capacity, 64),
+            nn.Linear(hidden_node_capacity, 128),
+            nn.ReLU(),
+            nn.LayerNorm(128),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 1)
         )
@@ -189,8 +193,7 @@ def process_single_dealer_node(payload_dictionary):
         algorithm_architectures = {
             'Holt_Winters': HoltWintersExponentialEngine(),
             'Prophet': ProphetOptimizationEngine(),
-            'TFT': DeepLearningDartsOrchestrator("TFT"),
-            'DeepAR': DeepLearningDartsOrchestrator("DeepAR")
+            'TFT': DeepLearningDartsOrchestrator("TFT")
         }
         
         rolling_validation_error_ledger = {alg: [] for alg in list(algorithm_architectures.keys()) + ['MLP', 'Custom_Ensemble', 'Short_History_RF', 'Sparse_Poisson', 'LSTM']}
@@ -359,7 +362,7 @@ class MasterExecutionManifold:
             temporal_index_object = pd.to_datetime(temporal_column_identifiers)
             
         self.t_omega_boundary = temporal_index_object.max()
-        self.backtest_validation_domain = pd.date_range(end=self.t_omega_boundary, periods=6, freq='MS')
+        self.backtest_validation_domain = pd.date_range(end=self.t_omega_boundary, periods=3, freq='MS')
         self.target_forecast_domain = pd.date_range(start=self.t_omega_boundary + pd.DateOffset(months=1), periods=1, freq='MS')
         
         self.df_sales_melted = dataframe_sales_raw.melt(id_vars=dataframe_sales_raw.columns[:3], var_name='t_str', value_name='q_val')
