@@ -4,6 +4,8 @@ import warnings
 import logging
 import sys
 import os
+import gc
+from concurrent.futures import ProcessPoolExecutor
 from tqdm import tqdm
 import torch
 import torch.nn as nn
@@ -18,6 +20,7 @@ from darts import TimeSeries
 from darts.models import TFTModel, RNNModel
 
 warnings.filterwarnings("ignore")
+logging.basicConfig(filename='forecast_errors.log', level=logging.ERROR)
 logging.getLogger("prophet").setLevel(logging.CRITICAL)
 logging.getLogger("cmdstanpy").setLevel(logging.CRITICAL)
 logging.getLogger("cmdstanpy").propagate = False
@@ -148,6 +151,196 @@ class DeepLearningDartsOrchestrator(MathematicalSubstrateInterface):
         except:
             return np.zeros(target_step_count)
 
+def construct_exogenous_state_matrix(temporal_history_frame, geographic_state_identifier, exclusivity_flag_identifier, global_price_tensor, target_forecast_domain):
+    temporal_origin_point = temporal_history_frame['t_node'].min()
+    absolute_future_boundary = target_forecast_domain[-1]
+    
+    unbroken_temporal_continuum = pd.date_range(start=temporal_origin_point, end=absolute_future_boundary, freq='MS')
+    baseline_exogenous_structure = pd.DataFrame({'ds': unbroken_temporal_continuum})
+    
+    filtered_geographic_pricing = global_price_tensor[(global_price_tensor['State'] == geographic_state_identifier)][['ds', 'price']].copy()
+    
+    unified_exogenous_tensor = pd.merge(baseline_exogenous_structure, filtered_geographic_pricing, on='ds', how='left')
+    unified_exogenous_tensor['price'] = unified_exogenous_tensor['price'].bfill().ffill().fillna(300) 
+    unified_exogenous_tensor['is_exclusive'] = 1 if str(exclusivity_flag_identifier).strip().upper() == 'YES' else 0
+    
+    return unified_exogenous_tensor
+
+def process_single_dealer_node(payload_dictionary):
+    singular_dealer_id = payload_dictionary['dealer_id']
+    historical_subset_frame = payload_dictionary['history_frame']
+    df_price_melted = payload_dictionary['price_frame']
+    backtest_validation_domain = payload_dictionary['val_domain']
+    target_forecast_domain = payload_dictionary['forecast_domain']
+    t_omega_boundary = payload_dictionary['t_omega']
+
+    try:
+        extracted_state_parameter = historical_subset_frame['State'].iloc[0]
+        extracted_exclusivity_parameter = historical_subset_frame['Exclusive'].iloc[0]
+        
+        constructed_exogenous_tensor = construct_exogenous_state_matrix(
+            historical_subset_frame, 
+            extracted_state_parameter, 
+            extracted_exclusivity_parameter, 
+            df_price_melted, 
+            target_forecast_domain
+        )
+        
+        algorithm_architectures = {
+            'Holt_Winters': HoltWintersExponentialEngine(),
+            'Prophet': ProphetOptimizationEngine(),
+            'TFT': DeepLearningDartsOrchestrator("TFT"),
+            'DeepAR': DeepLearningDartsOrchestrator("DeepAR")
+        }
+        
+        rolling_validation_error_ledger = {alg: [] for alg in list(algorithm_architectures.keys()) + ['MLP', 'Custom_Ensemble', 'Short_History_RF', 'Sparse_Poisson', 'LSTM']}
+        rolling_validation_prediction_ledger = {alg: [] for alg in rolling_validation_error_ledger.keys()}
+        actual_validation_ground_truths = []
+
+        for chronological_validation_step in backtest_validation_domain:
+            iterative_training_boundary = historical_subset_frame[historical_subset_frame['t_node'] < chronological_validation_step]
+            iterative_ground_truth_value = historical_subset_frame[historical_subset_frame['t_node'] == chronological_validation_step]['q_val'].values
+            
+            if len(iterative_training_boundary) < 6 or len(iterative_ground_truth_value) == 0:
+                actual_validation_ground_truths.append(0)
+                for k in rolling_validation_prediction_ledger.keys():
+                    rolling_validation_prediction_ledger[k].append(0)
+                continue
+                
+            actual_validation_ground_truths.append(iterative_ground_truth_value[0])
+            
+            for algo_name, algo_object in algorithm_architectures.items():
+                try:
+                    algo_object._execute_tensor_ingestion_and_optimization(iterative_training_boundary, constructed_exogenous_tensor)
+                    projected_step_value = algo_object._execute_extrapolation_projection(1, constructed_exogenous_tensor)
+                    rolling_validation_prediction_ledger[algo_name].append(projected_step_value[0])
+                except:
+                    rolling_validation_prediction_ledger[algo_name].append(0)
+
+            x_dimensional_training_vector = np.arange(len(iterative_training_boundary)).reshape(-1, 1)
+            y_dimensional_training_vector = iterative_training_boundary['q_val'].values
+            x_dimensional_validation_step = np.array([[len(iterative_training_boundary)]])
+            
+            scalar_transformation_object = StandardScaler()
+            x_dimensional_training_vector_scaled = scalar_transformation_object.fit_transform(x_dimensional_training_vector)
+            x_dimensional_validation_step_scaled = scalar_transformation_object.transform(x_dimensional_validation_step)
+            
+            mlp_architecture_object = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=1500, early_stopping=True).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
+            mlp_projected_value = np.maximum(0, mlp_architecture_object.predict(x_dimensional_validation_step_scaled))
+            rolling_validation_prediction_ledger['MLP'].append(mlp_projected_value[0])
+
+            huber_architecture_object = HuberRegressor(epsilon=1.35, max_iter=1500).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
+            huber_projected_value = np.maximum(0, huber_architecture_object.predict(x_dimensional_validation_step_scaled))
+            ensemble_projected_value = (mlp_projected_value[0] * 0.5) + (huber_projected_value[0] * 0.5)
+            rolling_validation_prediction_ledger['Custom_Ensemble'].append(ensemble_projected_value)
+            
+            rf_architecture_object = RandomForestRegressor(n_estimators=100, random_state=42).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
+            rf_projected_value = np.maximum(0, rf_architecture_object.predict(x_dimensional_validation_step_scaled))
+            rolling_validation_prediction_ledger['Short_History_RF'].append(rf_projected_value[0])
+            
+            poisson_architecture_object = PoissonRegressor(max_iter=1000).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
+            poisson_projected_value = np.maximum(0, poisson_architecture_object.predict(x_dimensional_validation_step_scaled))
+            rolling_validation_prediction_ledger['Sparse_Poisson'].append(poisson_projected_value[0])
+            
+            tensor_time_series_representation = torch.FloatTensor(y_dimensional_training_vector).view(-1, 1, 1)
+            pytorch_lstm_network = EndogenousRecurrentNetworkNode()
+            gradient_optimizer_function = torch.optim.Adam(pytorch_lstm_network.parameters(), lr=0.005)
+            huber_loss_function = nn.HuberLoss(delta=1.0)
+            
+            for _ in range(800):
+                gradient_optimizer_function.zero_grad()
+                network_output_state = pytorch_lstm_network(tensor_time_series_representation)
+                calculated_loss_metric = huber_loss_function(network_output_state, torch.FloatTensor(y_dimensional_training_vector).view(-1, 1))
+                calculated_loss_metric.backward()
+                gradient_optimizer_function.step()
+                
+            with torch.no_grad():
+                current_tensor_view = tensor_time_series_representation[-1].view(1, 1, 1)
+                lstm_projected_value = pytorch_lstm_network(current_tensor_view).item()
+                rolling_validation_prediction_ledger['LSTM'].append(np.maximum(0, lstm_projected_value))
+
+        sum_actual_ground_truths = np.sum(actual_validation_ground_truths)
+        if sum_actual_ground_truths == 0:
+            return None
+
+        calculated_algorithm_errors = {}
+        for algo_key, prediction_array in rolling_validation_prediction_ledger.items():
+            sum_absolute_divergence = np.sum(np.abs(np.array(actual_validation_ground_truths) - np.array(prediction_array)))
+            calculated_algorithm_errors[algo_key] = sum_absolute_divergence / sum_actual_ground_truths
+
+        crowned_champion_identifier = min(calculated_algorithm_errors, key=calculated_algorithm_errors.get)
+        
+        final_extrapolated_vector = np.zeros(1)
+        
+        if crowned_champion_identifier in algorithm_architectures:
+            algorithm_architectures[crowned_champion_identifier]._execute_tensor_ingestion_and_optimization(historical_subset_frame, constructed_exogenous_tensor)
+            final_extrapolated_vector = algorithm_architectures[crowned_champion_identifier]._execute_extrapolation_projection(1, constructed_exogenous_tensor)
+        else:
+            x_dimensional_absolute_vector = np.arange(len(historical_subset_frame)).reshape(-1, 1)
+            y_dimensional_absolute_vector = historical_subset_frame['q_val'].values
+            x_dimensional_future_vector = np.array([[len(historical_subset_frame)]])
+            
+            scalar_absolute_transformation = StandardScaler()
+            x_dimensional_absolute_scaled = scalar_absolute_transformation.fit_transform(x_dimensional_absolute_vector)
+            x_dimensional_future_scaled = scalar_absolute_transformation.transform(x_dimensional_future_vector)
+            
+            if crowned_champion_identifier == 'Custom_Ensemble':
+                mlp_absolute_architecture = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=3000, early_stopping=True).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
+                huber_absolute_architecture = HuberRegressor(max_iter=3000).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
+                final_extrapolated_vector = np.maximum(0, (mlp_absolute_architecture.predict(x_dimensional_future_scaled) * 0.5) + (huber_absolute_architecture.predict(x_dimensional_future_scaled) * 0.5))
+            elif crowned_champion_identifier == 'MLP':
+                mlp_absolute_architecture = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=3000, early_stopping=True).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
+                final_extrapolated_vector = np.maximum(0, mlp_absolute_architecture.predict(x_dimensional_future_scaled))
+            elif crowned_champion_identifier == 'Short_History_RF':
+                rf_absolute_architecture = RandomForestRegressor(n_estimators=200, random_state=42).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
+                final_extrapolated_vector = np.maximum(0, rf_absolute_architecture.predict(x_dimensional_future_scaled))
+            elif crowned_champion_identifier == 'Sparse_Poisson':
+                poisson_absolute_architecture = PoissonRegressor(max_iter=1000).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
+                final_extrapolated_vector = np.maximum(0, poisson_absolute_architecture.predict(x_dimensional_future_scaled))
+            elif crowned_champion_identifier == 'LSTM':
+                tensor_absolute_representation = torch.FloatTensor(y_dimensional_absolute_vector).view(-1, 1, 1)
+                absolute_lstm_network = EndogenousRecurrentNetworkNode()
+                absolute_gradient_optimizer = torch.optim.Adam(absolute_lstm_network.parameters(), lr=0.005)
+                absolute_loss_function = nn.HuberLoss(delta=1.0)
+                for _ in range(1500):
+                    absolute_gradient_optimizer.zero_grad()
+                    network_absolute_output = absolute_lstm_network(tensor_absolute_representation)
+                    absolute_loss_metric = absolute_loss_function(network_absolute_output, torch.FloatTensor(y_dimensional_absolute_vector).view(-1, 1))
+                    absolute_loss_metric.backward()
+                    absolute_gradient_optimizer.step()
+                with torch.no_grad():
+                    current_absolute_tensor = tensor_absolute_representation[-1].view(1, 1, 1)
+                    final_extrapolated_vector = np.array([np.maximum(0, absolute_lstm_network(current_absolute_tensor).item())])
+
+        serialized_dealer_dictionary = {
+            'Dealer_Code': singular_dealer_id,
+            'State': extracted_state_parameter,
+            'Exclusive': extracted_exclusivity_parameter,
+            'Winning_Algorithm': crowned_champion_identifier,
+            'Rolling_Validation_WMAPE': f"{calculated_algorithm_errors[crowned_champion_identifier]:.2%}"
+        }
+        
+        champion_prediction_array = rolling_validation_prediction_ledger[crowned_champion_identifier]
+        for sequence_index, chronological_date in enumerate(backtest_validation_domain):
+            actual_divergence_volume = actual_validation_ground_truths[sequence_index]
+            predicted_divergence_volume = champion_prediction_array[sequence_index]
+            calculative_divisor = actual_divergence_volume if actual_divergence_volume > 0 else (1.0 if predicted_divergence_volume > 0 else 1.0)
+            monthly_error_ratio = np.abs(actual_divergence_volume - predicted_divergence_volume) / calculative_divisor
+            serialized_dealer_dictionary[f"Val_WMAPE_{chronological_date.strftime('%b_%y')}"] = f"{monthly_error_ratio:.2%}"
+        
+        for index_p, chronological_date_p in enumerate(target_forecast_domain):
+            serialized_dealer_dictionary[f"Forecast_{chronological_date_p.strftime('%b_%y')}"] = final_extrapolated_vector[index_p]
+            
+        return serialized_dealer_dictionary
+
+    except Exception as execution_error:
+        logging.error(f"Error processing dealer {singular_dealer_id}: {str(execution_error)}")
+        return None
+    finally:
+        if 'torch' in sys.modules and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
 class MasterExecutionManifold:
     def __init__(self, input_filepath_string='dealer_data.xlsx'):
         self._source_filepath = input_filepath_string
@@ -174,194 +367,33 @@ class MasterExecutionManifold:
         
         self.df_price_melted = dataframe_price_raw.melt(id_vars=['State'], var_name='t_str', value_name='price')
         self.df_price_melted['ds'] = pd.to_datetime(self.df_price_melted['t_str'], errors='coerce')
-        
-    def _construct_exogenous_state_matrix(self, temporal_history_frame, geographic_state_identifier, exclusivity_flag_identifier):
-        temporal_origin_point = temporal_history_frame['t_node'].min()
-        absolute_future_boundary = self.target_forecast_domain[-1]
-        
-        unbroken_temporal_continuum = pd.date_range(start=temporal_origin_point, end=absolute_future_boundary, freq='MS')
-        baseline_exogenous_structure = pd.DataFrame({'ds': unbroken_temporal_continuum})
-        
-        filtered_geographic_pricing = self.df_price_melted[(self.df_price_melted['State'] == geographic_state_identifier)][['ds', 'price']].copy()
-        
-        unified_exogenous_tensor = pd.merge(baseline_exogenous_structure, filtered_geographic_pricing, on='ds', how='left')
-        unified_exogenous_tensor['price'] = unified_exogenous_tensor['price'].bfill().ffill().fillna(300) 
-        unified_exogenous_tensor['is_exclusive'] = 1 if str(exclusivity_flag_identifier).strip().upper() == 'YES' else 0
-        
-        return unified_exogenous_tensor
 
     def execute_global_matrix_tournament(self):
         unique_dealer_identifiers = self.df_sales_melted['Dealer_Code'].unique()
-        compiled_output_dictionary_list = []
-        
-        process_tracker_object = tqdm(total=len(unique_dealer_identifiers), desc="Processing Neural Manifolds", unit="node", dynamic_ncols=True)
+        compiled_payloads = []
         
         for singular_dealer_id in unique_dealer_identifiers:
-            process_tracker_object.set_postfix_str(f"ID: {singular_dealer_id}")
             historical_subset_frame = self.df_sales_melted[self.df_sales_melted['Dealer_Code'] == singular_dealer_id].sort_values('t_node')
-            
-            if len(historical_subset_frame) < 12: 
-                process_tracker_object.update(1)
-                continue 
-            
-            extracted_state_parameter = historical_subset_frame['State'].iloc[0]
-            extracted_exclusivity_parameter = historical_subset_frame['Exclusive'].iloc[0]
-            
-            constructed_exogenous_tensor = self._construct_exogenous_state_matrix(historical_subset_frame, extracted_state_parameter, extracted_exclusivity_parameter)
-            
-            algorithm_architectures = {
-                'Holt_Winters': HoltWintersExponentialEngine(),
-                'Prophet': ProphetOptimizationEngine(),
-                'TFT': DeepLearningDartsOrchestrator("TFT"),
-                'DeepAR': DeepLearningDartsOrchestrator("DeepAR")
-            }
-            
-            rolling_validation_error_ledger = {alg: [] for alg in list(algorithm_architectures.keys()) + ['MLP', 'Custom_Ensemble', 'Short_History_RF', 'Sparse_Poisson', 'LSTM']}
-            rolling_validation_prediction_ledger = {alg: [] for alg in rolling_validation_error_ledger.keys()}
-            actual_validation_ground_truths = []
+            if len(historical_subset_frame) >= 12:
+                compiled_payloads.append({
+                    'dealer_id': singular_dealer_id,
+                    'history_frame': historical_subset_frame,
+                    'price_frame': self.df_price_melted,
+                    'val_domain': self.backtest_validation_domain,
+                    'forecast_domain': self.target_forecast_domain,
+                    't_omega': self.t_omega_boundary
+                })
 
-            for chronological_validation_step in self.backtest_validation_domain:
-                iterative_training_boundary = historical_subset_frame[historical_subset_frame['t_node'] < chronological_validation_step]
-                iterative_ground_truth_value = historical_subset_frame[historical_subset_frame['t_node'] == chronological_validation_step]['q_val'].values
-                
-                if len(iterative_training_boundary) < 6 or len(iterative_ground_truth_value) == 0:
-                    actual_validation_ground_truths.append(0)
-                    for k in rolling_validation_prediction_ledger.keys():
-                        rolling_validation_prediction_ledger[k].append(0)
-                    continue
-                    
-                actual_validation_ground_truths.append(iterative_ground_truth_value[0])
-                
-                for algo_name, algo_object in algorithm_architectures.items():
-                    try:
-                        algo_object._execute_tensor_ingestion_and_optimization(iterative_training_boundary, constructed_exogenous_tensor)
-                        projected_step_value = algo_object._execute_extrapolation_projection(1, constructed_exogenous_tensor)
-                        rolling_validation_prediction_ledger[algo_name].append(projected_step_value[0])
-                    except:
-                        rolling_validation_prediction_ledger[algo_name].append(0)
-
-                x_dimensional_training_vector = np.arange(len(iterative_training_boundary)).reshape(-1, 1)
-                y_dimensional_training_vector = iterative_training_boundary['q_val'].values
-                x_dimensional_validation_step = np.array([[len(iterative_training_boundary)]])
-                
-                scalar_transformation_object = StandardScaler()
-                x_dimensional_training_vector_scaled = scalar_transformation_object.fit_transform(x_dimensional_training_vector)
-                x_dimensional_validation_step_scaled = scalar_transformation_object.transform(x_dimensional_validation_step)
-                
-                mlp_architecture_object = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=1500, early_stopping=True).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
-                mlp_projected_value = np.maximum(0, mlp_architecture_object.predict(x_dimensional_validation_step_scaled))
-                rolling_validation_prediction_ledger['MLP'].append(mlp_projected_value[0])
-
-                huber_architecture_object = HuberRegressor(epsilon=1.35, max_iter=1500).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
-                huber_projected_value = np.maximum(0, huber_architecture_object.predict(x_dimensional_validation_step_scaled))
-                ensemble_projected_value = (mlp_projected_value[0] * 0.5) + (huber_projected_value[0] * 0.5)
-                rolling_validation_prediction_ledger['Custom_Ensemble'].append(ensemble_projected_value)
-                
-                rf_architecture_object = RandomForestRegressor(n_estimators=100, random_state=42).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
-                rf_projected_value = np.maximum(0, rf_architecture_object.predict(x_dimensional_validation_step_scaled))
-                rolling_validation_prediction_ledger['Short_History_RF'].append(rf_projected_value[0])
-                
-                poisson_architecture_object = PoissonRegressor(max_iter=1000).fit(x_dimensional_training_vector_scaled, y_dimensional_training_vector)
-                poisson_projected_value = np.maximum(0, poisson_architecture_object.predict(x_dimensional_validation_step_scaled))
-                rolling_validation_prediction_ledger['Sparse_Poisson'].append(poisson_projected_value[0])
-                
-                tensor_time_series_representation = torch.FloatTensor(y_dimensional_training_vector).view(-1, 1, 1)
-                pytorch_lstm_network = EndogenousRecurrentNetworkNode()
-                gradient_optimizer_function = torch.optim.Adam(pytorch_lstm_network.parameters(), lr=0.005)
-                huber_loss_function = nn.HuberLoss(delta=1.0)
-                
-                for _ in range(800):
-                    gradient_optimizer_function.zero_grad()
-                    network_output_state = pytorch_lstm_network(tensor_time_series_representation)
-                    calculated_loss_metric = huber_loss_function(network_output_state, torch.FloatTensor(y_dimensional_training_vector).view(-1, 1))
-                    calculated_loss_metric.backward()
-                    gradient_optimizer_function.step()
-                    
-                with torch.no_grad():
-                    current_tensor_view = tensor_time_series_representation[-1].view(1, 1, 1)
-                    lstm_projected_value = pytorch_lstm_network(current_tensor_view).item()
-                    rolling_validation_prediction_ledger['LSTM'].append(np.maximum(0, lstm_projected_value))
-
-            sum_actual_ground_truths = np.sum(actual_validation_ground_truths)
-            if sum_actual_ground_truths == 0:
-                process_tracker_object.update(1)
-                continue
-
-            calculated_algorithm_errors = {}
-            for algo_key, prediction_array in rolling_validation_prediction_ledger.items():
-                sum_absolute_divergence = np.sum(np.abs(np.array(actual_validation_ground_truths) - np.array(prediction_array)))
-                calculated_algorithm_errors[algo_key] = sum_absolute_divergence / sum_actual_ground_truths
-
-            crowned_champion_identifier = min(calculated_algorithm_errors, key=calculated_algorithm_errors.get)
+        print(f"Deploying Parallel Processing Array: {len(compiled_payloads)} Nodes on 6 Cloud Cores...")
+        
+        with ProcessPoolExecutor(max_workers=6) as compute_executor:
+            raw_results_matrix = list(tqdm(compute_executor.map(process_single_dealer_node, compiled_payloads), total=len(compiled_payloads), desc="Parallel Execution", dynamic_ncols=True))
             
-            final_extrapolated_vector = np.zeros(1)
-            
-            if crowned_champion_identifier in algorithm_architectures:
-                algorithm_architectures[crowned_champion_identifier]._execute_tensor_ingestion_and_optimization(historical_subset_frame, constructed_exogenous_tensor)
-                final_extrapolated_vector = algorithm_architectures[crowned_champion_identifier]._execute_extrapolation_projection(1, constructed_exogenous_tensor)
-            else:
-                x_dimensional_absolute_vector = np.arange(len(historical_subset_frame)).reshape(-1, 1)
-                y_dimensional_absolute_vector = historical_subset_frame['q_val'].values
-                x_dimensional_future_vector = np.array([[len(historical_subset_frame)]])
-                
-                scalar_absolute_transformation = StandardScaler()
-                x_dimensional_absolute_scaled = scalar_absolute_transformation.fit_transform(x_dimensional_absolute_vector)
-                x_dimensional_future_scaled = scalar_absolute_transformation.transform(x_dimensional_future_vector)
-                
-                if crowned_champion_identifier == 'Custom_Ensemble':
-                    mlp_absolute_architecture = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=3000, early_stopping=True).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
-                    huber_absolute_architecture = HuberRegressor(max_iter=3000).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
-                    final_extrapolated_vector = np.maximum(0, (mlp_absolute_architecture.predict(x_dimensional_future_scaled) * 0.5) + (huber_absolute_architecture.predict(x_dimensional_future_scaled) * 0.5))
-                elif crowned_champion_identifier == 'MLP':
-                    mlp_absolute_architecture = MLPRegressor(hidden_layer_sizes=(256, 128, 64), max_iter=3000, early_stopping=True).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
-                    final_extrapolated_vector = np.maximum(0, mlp_absolute_architecture.predict(x_dimensional_future_scaled))
-                elif crowned_champion_identifier == 'Short_History_RF':
-                    rf_absolute_architecture = RandomForestRegressor(n_estimators=200, random_state=42).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
-                    final_extrapolated_vector = np.maximum(0, rf_absolute_architecture.predict(x_dimensional_future_scaled))
-                elif crowned_champion_identifier == 'Sparse_Poisson':
-                    poisson_absolute_architecture = PoissonRegressor(max_iter=1000).fit(x_dimensional_absolute_scaled, y_dimensional_absolute_vector)
-                    final_extrapolated_vector = np.maximum(0, poisson_absolute_architecture.predict(x_dimensional_future_scaled))
-                elif crowned_champion_identifier == 'LSTM':
-                    tensor_absolute_representation = torch.FloatTensor(y_dimensional_absolute_vector).view(-1, 1, 1)
-                    absolute_lstm_network = EndogenousRecurrentNetworkNode()
-                    absolute_gradient_optimizer = torch.optim.Adam(absolute_lstm_network.parameters(), lr=0.005)
-                    absolute_loss_function = nn.HuberLoss(delta=1.0)
-                    for _ in range(1500):
-                        absolute_gradient_optimizer.zero_grad()
-                        network_absolute_output = absolute_lstm_network(tensor_absolute_representation)
-                        absolute_loss_metric = absolute_loss_function(network_absolute_output, torch.FloatTensor(y_dimensional_absolute_vector).view(-1, 1))
-                        absolute_loss_metric.backward()
-                        absolute_gradient_optimizer.step()
-                    with torch.no_grad():
-                        current_absolute_tensor = tensor_absolute_representation[-1].view(1, 1, 1)
-                        final_extrapolated_vector = np.array([np.maximum(0, absolute_lstm_network(current_absolute_tensor).item())])
-
-            serialized_dealer_dictionary = {
-                'Dealer_Code': singular_dealer_id,
-                'State': extracted_state_parameter,
-                'Exclusive': extracted_exclusivity_parameter,
-                'Winning_Algorithm': crowned_champion_identifier,
-                'Rolling_Validation_WMAPE': f"{calculated_algorithm_errors[crowned_champion_identifier]:.2%}"
-            }
-            
-            champion_prediction_array = rolling_validation_prediction_ledger[crowned_champion_identifier]
-            for sequence_index, chronological_date in enumerate(self.backtest_validation_domain):
-                actual_divergence_volume = actual_validation_ground_truths[sequence_index]
-                predicted_divergence_volume = champion_prediction_array[sequence_index]
-                calculative_divisor = actual_divergence_volume if actual_divergence_volume > 0 else (1.0 if predicted_divergence_volume > 0 else 1.0)
-                monthly_error_ratio = np.abs(actual_divergence_volume - predicted_divergence_volume) / calculative_divisor
-                serialized_dealer_dictionary[f"Val_WMAPE_{chronological_date.strftime('%b_%y')}"] = f"{monthly_error_ratio:.2%}"
-            
-            for index_p, chronological_date_p in enumerate(self.target_forecast_domain):
-                serialized_dealer_dictionary[f"Forecast_{chronological_date_p.strftime('%b_%y')}"] = final_extrapolated_vector[index_p]
-                
-            compiled_output_dictionary_list.append(serialized_dealer_dictionary)
-            process_tracker_object.update(1)
-
-        process_tracker_object.close()
-
-        final_dataframe_matrix = pd.DataFrame(compiled_output_dictionary_list)
+        filtered_results_matrix = [result for result in raw_results_matrix if result is not None]
+        
+        final_dataframe_matrix = pd.DataFrame(filtered_results_matrix)
         final_dataframe_matrix.to_excel("rolling_tournament_forecast_matrix.xlsx", index=False)
+        print("\nManifold Processing Complete. Extrapolations sealed in 'rolling_tournament_forecast_matrix.xlsx'.")
 
 if __name__ == "__main__":
     orchestration_engine = MasterExecutionManifold(input_filepath_string='dealer_data.xlsx')
